@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — My Blog</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <a class="site-title" href="/">My Blog</a>
+      <nav><a href="/">Home</a></nav>
+      <button id="theme-toggle" title="Toggle dark mode">🌙</button>
+    </div>
+  </header>
+  <script>
+    (function() {
+      const saved = localStorage.getItem("theme");
+      if (saved) document.documentElement.setAttribute("data-theme", saved);
+      else if (window.matchMedia("(prefers-color-scheme: dark)").matches)
+        document.documentElement.setAttribute("data-theme", "dark");
+    })();
+  </script>
+
+  <main class="container" style="max-width:420px">
+    <div class="form-card" style="margin-top:3rem">
+      <h1 style="font-size:1.4rem;margin-bottom:1.5rem">Sign in</h1>
+      <form id="login-form">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" autocomplete="username" required autofocus />
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" autocomplete="current-password" required />
+        </div>
+        <div id="login-error" style="color:var(--danger);font-size:0.88rem;margin-bottom:0.75rem;display:none"></div>
+        <button type="submit" class="btn btn-primary" id="btn-login" style="width:100%;justify-content:center">Sign in</button>
+      </form>
+    </div>
+  </main>
+
+  <script>
+    // If already logged in, go straight to admin
+    if (localStorage.getItem("authToken")) {
+      fetch("/api/auth/me", {
+        headers: { "Authorization": "Bearer " + localStorage.getItem("authToken") }
+      }).then(r => { if (r.ok) window.location.href = "/admin.html"; });
+    }
+
+    document.getElementById("login-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("btn-login");
+      const errEl = document.getElementById("login-error");
+      errEl.style.display = "none";
+      btn.disabled = true;
+      btn.textContent = "Signing in…";
+
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: document.getElementById("username").value.trim(),
+          password: document.getElementById("password").value,
+        }),
+      });
+
+      btn.disabled = false;
+      btn.textContent = "Sign in";
+
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem("authToken", data.token);
+        localStorage.setItem("authUser", JSON.stringify(data.user));
+        window.location.href = "/admin.html";
+      } else {
+        const err = await res.json();
+        errEl.textContent = err.error || "Login failed";
+        errEl.style.display = "block";
+      }
+    });
+
+    // Theme toggle
+    const btn = document.getElementById("theme-toggle");
+    function applyTheme(theme) {
+      document.documentElement.setAttribute("data-theme", theme);
+      btn.textContent = theme === "dark" ? "☀️" : "🌙";
+      localStorage.setItem("theme", theme);
+    }
+    btn.textContent = (document.documentElement.getAttribute("data-theme") || "light") === "dark" ? "☀️" : "🌙";
+    btn.addEventListener("click", () => {
+      applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+    });
+  </script>
+</body>
+</html>

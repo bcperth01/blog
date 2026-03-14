@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Blog</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <a class="site-title" href="/">My Blog</a>
+      <nav>
+        <a href="/" class="active">Home</a>
+        <a href="/admin.html" id="nav-admin" style="display:none">Admin</a>
+        <a href="/login.html" id="nav-login">Login</a>
+      </nav>
+      <button id="theme-toggle" title="Toggle dark mode">🌙</button>
+    </div>
+  </header>
+  <script>
+    (function() {
+      const saved = localStorage.getItem("theme");
+      if (saved) document.documentElement.setAttribute("data-theme", saved);
+      else if (window.matchMedia("(prefers-color-scheme: dark)").matches)
+        document.documentElement.setAttribute("data-theme", "dark");
+    })();
+  </script>
+
+  <main class="container">
+    <div class="search-row">
+      <input type="text" id="search-input" placeholder="Search posts…" autocomplete="off" />
+    </div>
+
+    <div class="tag-list" id="tag-list">
+      <span class="tag all active" data-slug="">All</span>
+    </div>
+
+    <div id="loading">Loading…</div>
+    <div class="post-list" id="post-list"></div>
+    <div class="pagination" id="pagination"></div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const API = "/api";
+    let state = { search: "", tag: "", page: 1 };
+    let searchTimer;
+
+    async function loadTags() {
+      const res = await fetch(`${API}/tags`);
+      const tags = await res.json();
+      const list = document.getElementById("tag-list");
+      tags.forEach(t => {
+        const s = document.createElement("span");
+        s.className = "tag";
+        s.dataset.slug = t.slug;
+        s.textContent = `${t.name} (${t.post_count})`;
+        s.addEventListener("click", () => selectTag(t.slug));
+        list.appendChild(s);
+      });
+    }
+
+    function selectTag(slug) {
+      state.tag = slug;
+      state.page = 1;
+      document.querySelectorAll(".tag").forEach(el => {
+        el.classList.toggle("active", el.dataset.slug === slug);
+      });
+      loadPosts();
+    }
+
+    async function loadPosts() {
+      const loading = document.getElementById("loading");
+      loading.style.display = "block";
+      const params = new URLSearchParams({
+        published: "true",
+        page: state.page,
+        limit: 8,
+        ...(state.search && { search: state.search }),
+        ...(state.tag && { tag: state.tag }),
+      });
+      const res = await fetch(`${API}/posts?${params}`);
+      const data = await res.json();
+      loading.style.display = "none";
+      renderPosts(data);
+    }
+
+    function renderPosts({ posts, total, page, limit }) {
+      const list = document.getElementById("post-list");
+      if (!posts.length) {
+        list.innerHTML = '<div class="empty-state">No posts found.</div>';
+        document.getElementById("pagination").innerHTML = "";
+        return;
+      }
+      list.innerHTML = posts.map(p => `
+        <article class="post-card">
+          <h2><a href="/post.html?slug=${p.slug}">${escHtml(p.title)}</a></h2>
+          <div class="meta">${formatDate(p.created_at)}</div>
+          ${p.excerpt ? `<p class="excerpt">${escHtml(p.excerpt)}</p>` : ""}
+          <div class="card-footer">
+            <div class="tag-list">
+              ${p.tags.map(t => `<span class="tag" onclick="selectTag('${t.slug}')">${escHtml(t.name)}</span>`).join("")}
+            </div>
+            <a class="btn btn-secondary" href="/post.html?slug=${p.slug}" style="padding:0.3rem 0.8rem;font-size:0.82rem">Read →</a>
+          </div>
+        </article>
+      `).join("");
+
+      renderPagination(total, page, limit);
+    }
+
+    function renderPagination(total, page, limit) {
+      const pages = Math.ceil(total / limit);
+      const el = document.getElementById("pagination");
+      if (pages <= 1) { el.innerHTML = ""; return; }
+      let html = `<button ${page === 1 ? "disabled" : ""} onclick="goPage(${page - 1})">‹ Prev</button>`;
+      for (let i = 1; i <= pages; i++) {
+        html += `<button class="${i === page ? "current" : ""}" onclick="goPage(${i})">${i}</button>`;
+      }
+      html += `<button ${page === pages ? "disabled" : ""} onclick="goPage(${page + 1})">Next ›</button>`;
+      el.innerHTML = html;
+    }
+
+    function goPage(p) { state.page = p; loadPosts(); window.scrollTo(0, 0); }
+
+    document.getElementById("search-input").addEventListener("input", e => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        state.search = e.target.value.trim();
+        state.page = 1;
+        loadPosts();
+      }, 350);
+    });
+
+    function formatDate(iso) {
+      return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    }
+    function escHtml(s) {
+      return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+
+    // Show Admin link if logged in, Login otherwise
+    if (localStorage.getItem("authToken")) {
+      document.getElementById("nav-admin").style.display = "";
+      document.getElementById("nav-login").style.display = "none";
+    }
+
+    loadTags();
+    loadPosts();
+
+    // Theme toggle
+    const btn = document.getElementById("theme-toggle");
+    function applyTheme(theme) {
+      document.documentElement.setAttribute("data-theme", theme);
+      btn.textContent = theme === "dark" ? "☀️" : "🌙";
+      localStorage.setItem("theme", theme);
+    }
+    const current = document.documentElement.getAttribute("data-theme") || "light";
+    btn.textContent = current === "dark" ? "☀️" : "🌙";
+    btn.addEventListener("click", () => {
+      applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — My Blog</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <a class="site-title" href="/">My Blog</a>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/admin.html" class="active">Admin</a>
+      </nav>
+      <div style="display:flex;align-items:center;gap:0.5rem">
+        <span id="nav-username" style="font-size:0.85rem;color:var(--muted)"></span>
+        <button class="btn btn-secondary" id="btn-logout" style="padding:0.3rem 0.75rem;font-size:0.82rem">Logout</button>
+        <button id="theme-toggle" title="Toggle dark mode">🌙</button>
+      </div>
+    </div>
+  </header>
+  <script>
+    (function() {
+      const saved = localStorage.getItem("theme");
+      if (saved) document.documentElement.setAttribute("data-theme", saved);
+      else if (window.matchMedia("(prefers-color-scheme: dark)").matches)
+        document.documentElement.setAttribute("data-theme", "dark");
+    })();
+  </script>
+
+  <main class="container">
+
+    <!-- ── View switch ── -->
+    <div style="display:flex;gap:0.75rem;margin-bottom:1.5rem;align-items:center;flex-wrap:wrap">
+      <h1 class="page-title" style="margin:0">Admin</h1>
+      <div style="flex:1"></div>
+      <button class="btn btn-primary" id="btn-new-post">+ New Post</button>
+      <button class="btn btn-secondary" id="btn-manage-tags">Manage Tags</button>
+      <button class="btn btn-secondary admin-only" id="btn-manage-users" style="display:none">Manage Users</button>
+      <button class="btn btn-secondary" id="btn-manage-images">Images</button>
+    </div>
+
+    <!-- ── Posts table ── -->
+    <div id="view-posts">
+      <div id="loading">Loading…</div>
+      <div class="form-card" style="padding:0;overflow:hidden">
+        <table class="admin-table">
+          <thead>
+            <tr><th>Title</th><th>Status</th><th>Created</th><th>Tags</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="posts-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Post form ── -->
+    <div id="view-form" style="display:none">
+      <h2 class="page-title" id="form-title">New Post</h2>
+      <div class="form-card">
+        <form id="post-form">
+          <input type="hidden" id="post-id" />
+          <div class="form-group">
+            <label for="input-title">Title *</label>
+            <input type="text" id="input-title" placeholder="Post title" required />
+          </div>
+          <div class="form-group">
+            <label for="input-excerpt">Excerpt <span style="font-weight:400;color:var(--muted)">(optional short summary)</span></label>
+            <input type="text" id="input-excerpt" placeholder="Brief description shown on the post list" />
+          </div>
+          <div class="form-group">
+            <label for="input-content">Content * <span style="font-weight:400;color:var(--muted)">(Markdown supported)</span></label>
+            <textarea class="code-area" id="input-content" placeholder="Write your post in Markdown…" required></textarea>
+          </div>
+          <div class="form-group">
+            <label>Tags</label>
+            <div class="tag-checkboxes" id="tag-checkboxes"></div>
+            <div style="margin-top:0.5rem;display:flex;gap:0.5rem">
+              <input type="text" id="new-tag-input" placeholder="Add new tag…" style="flex:1;padding:0.4rem 0.6rem;border:1px solid var(--border);border-radius:var(--radius);font-size:0.88rem" />
+              <button type="button" class="btn btn-secondary" id="btn-add-tag" style="padding:0.4rem 0.85rem">Add</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="checkbox-row">
+              <input type="checkbox" id="input-published" />
+              <label for="input-published">Published</label>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button type="submit" class="btn btn-primary" id="btn-save">Save Post</button>
+            <button type="button" class="btn btn-secondary" id="btn-cancel">Cancel</button>
+            <span id="form-status" style="font-size:0.85rem;color:var(--muted)"></span>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ── Tag manager ── -->
+    <div id="view-tags" style="display:none">
+      <h2 class="page-title">Manage Tags</h2>
+      <div class="form-card">
+        <div style="display:flex;gap:0.5rem;margin-bottom:1rem">
+          <input type="text" id="new-tag-main" placeholder="New tag name…" style="flex:1;padding:0.5rem 0.75rem;border:1px solid var(--border);border-radius:var(--radius);font-size:0.95rem" />
+          <button class="btn btn-primary" id="btn-create-tag">Create Tag</button>
+        </div>
+        <div id="tags-list"></div>
+      </div>
+      <div style="margin-top:1rem">
+        <button class="btn btn-secondary" id="btn-back-from-tags">← Back to Posts</button>
+      </div>
+    </div>
+
+    <!-- ── User manager ── -->
+    <div id="view-users" style="display:none">
+      <h2 class="page-title">Manage Users</h2>
+      <div style="margin-bottom:1rem">
+        <button class="btn btn-primary" id="btn-new-user">+ New User</button>
+      </div>
+      <div class="form-card" style="padding:0;overflow:hidden">
+        <table class="admin-table">
+          <thead>
+            <tr><th>Username</th><th>Email</th><th>Role</th><th>Created</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="users-tbody"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:1rem">
+        <button class="btn btn-secondary" id="btn-back-from-users">← Back to Posts</button>
+      </div>
+    </div>
+
+    <!-- ── Image manager ── -->
+    <div id="view-images" style="display:none">
+      <h2 class="page-title">Images</h2>
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap">
+        <label class="btn btn-primary" for="img-file-input" style="cursor:pointer">↑ Upload Images</label>
+        <input type="file" id="img-file-input" accept="image/*" multiple style="display:none" />
+        <div id="upload-progress" style="display:none;flex:1;min-width:200px">
+          <div style="font-size:0.85rem;color:var(--muted)" id="upload-status"></div>
+          <div style="background:var(--border);border-radius:4px;height:5px;margin-top:5px">
+            <div id="upload-bar" style="background:var(--accent);height:5px;border-radius:4px;width:0%;transition:width 0.2s"></div>
+          </div>
+        </div>
+      </div>
+      <div class="image-grid" id="image-grid"></div>
+      <div style="margin-top:1.25rem">
+        <button class="btn btn-secondary" id="btn-back-from-images">← Back to Posts</button>
+      </div>
+    </div>
+
+    <!-- ── User form ── -->
+    <div id="view-user-form" style="display:none">
+      <h2 class="page-title" id="user-form-title">New User</h2>
+      <div class="form-card">
+        <form id="user-form">
+          <input type="hidden" id="user-id" />
+          <div class="form-group">
+            <label for="user-username">Username *</label>
+            <input type="text" id="user-username" required />
+          </div>
+          <div class="form-group">
+            <label for="user-email">Email *</label>
+            <input type="email" id="user-email" required />
+          </div>
+          <div class="form-group">
+            <label for="user-password">Password <span id="pw-hint" style="font-weight:400;color:var(--muted)">*</span></label>
+            <input type="password" id="user-password" autocomplete="new-password" />
+          </div>
+          <div class="form-group">
+            <label for="user-role">Role</label>
+            <select id="user-role" style="padding:0.5rem 0.75rem;border:1px solid var(--border);border-radius:var(--radius);font-size:0.95rem;background:var(--bg);color:var(--text)">
+              <option value="contributor">Contributor</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div class="btn-row">
+            <button type="submit" class="btn btn-primary" id="btn-save-user">Save User</button>
+            <button type="button" class="btn btn-secondary" id="btn-cancel-user">Cancel</button>
+            <span id="user-form-status" style="font-size:0.85rem;color:var(--muted)"></span>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ── Lightbox ── -->
+  <div class="lightbox-overlay" id="lightbox" style="display:none" onclick="closeLightbox()">
+    <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+    <div class="lightbox-inner" onclick="event.stopPropagation()">
+      <img id="lightbox-img" src="" alt="" />
+      <div id="lightbox-caption" class="lightbox-caption"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const API = "/api";
+    let allTags = [];
+    let currentUser = null;
+
+    // ── Auth ───────────────────────────────────────────────
+    function authHeaders() {
+      return {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + (localStorage.getItem("authToken") || "")
+      };
+    }
+
+    async function checkAuth() {
+      const token = localStorage.getItem("authToken");
+      if (!token) { window.location.href = "/login.html"; return false; }
+      const res = await fetch(`${API}/auth/me`, {
+        headers: { "Authorization": "Bearer " + token }
+      });
+      if (!res.ok) { logout(); return false; }
+      currentUser = await res.json();
+      document.getElementById("nav-username").textContent = currentUser.username;
+      if (currentUser.role === "admin") {
+        document.getElementById("btn-manage-users").style.display = "";
+      }
+      return true;
+    }
+
+    function logout() {
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("authUser");
+      window.location.href = "/login.html";
+    }
+
+    document.getElementById("btn-logout").addEventListener("click", logout);
+
+    // ── Toast ──────────────────────────────────────────────
+    function showToast(msg) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.classList.add("show");
+      setTimeout(() => t.classList.remove("show"), 2500);
+    }
+
+    function formatDate(iso) {
+      return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    }
+    function escHtml(s) {
+      return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+
+    // ── View helpers ───────────────────────────────────────
+    const ALL_VIEWS = ["view-posts","view-form","view-tags","view-users","view-user-form","view-images"];
+    function showView(id) {
+      ALL_VIEWS.forEach(v => document.getElementById(v).style.display = v === id ? "block" : "none");
+    }
+
+    // ── Load tags ──────────────────────────────────────────
+    async function loadTags() {
+      const res = await fetch(`${API}/tags`);
+      allTags = await res.json();
+    }
+
+    // ── Load posts ─────────────────────────────────────────
+    async function loadPosts() {
+      document.getElementById("loading").style.display = "block";
+      const res = await fetch(`${API}/posts?limit=100`, { headers: authHeaders() });
+      if (res.status === 401) { logout(); return; }
+      const data = await res.json();
+      document.getElementById("loading").style.display = "none";
+      renderPostsTable(data.posts);
+    }
+
+    function renderPostsTable(posts) {
+      const tbody = document.getElementById("posts-tbody");
+      if (!posts.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:2rem">No posts yet.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = posts.map(p => `
+        <tr>
+          <td><strong>${escHtml(p.title)}</strong></td>
+          <td>
+            <span class="status-dot ${p.published ? "pub" : "draft"}"></span>
+            ${p.published ? "Published" : "Draft"}
+          </td>
+          <td>${formatDate(p.created_at)}</td>
+          <td>${p.tags.map(t => `<span class="tag" style="cursor:default">${escHtml(t.name)}</span>`).join(" ")}</td>
+          <td>
+            <div class="actions">
+              <button class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem" onclick="editPost(${p.id}, '${p.slug}')">Edit</button>
+              <button class="btn btn-danger"    style="padding:0.3rem 0.7rem;font-size:0.82rem" onclick="deletePost(${p.id}, '${escHtml(p.title)}')">Delete</button>
+              <a class="btn btn-secondary" href="/post.html?slug=${p.slug}" target="_blank" style="padding:0.3rem 0.7rem;font-size:0.82rem">View</a>
+            </div>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    // ── New post ───────────────────────────────────────────
+    document.getElementById("btn-new-post").addEventListener("click", () => {
+      document.getElementById("form-title").textContent = "New Post";
+      document.getElementById("post-form").reset();
+      document.getElementById("post-id").value = "";
+      renderTagCheckboxes([]);
+      showView("view-form");
+    });
+
+    document.getElementById("btn-cancel").addEventListener("click", () => showView("view-posts"));
+
+    // ── Edit post ──────────────────────────────────────────
+    async function editPost(id, slug) {
+      await loadTags();
+      const res = await fetch(`${API}/posts/${slug}`, { headers: authHeaders() });
+      if (!res.ok) return;
+      const post = await res.json();
+
+      document.getElementById("form-title").textContent = "Edit Post";
+      document.getElementById("post-id").value = id;
+      document.getElementById("input-title").value = post.title;
+      document.getElementById("input-excerpt").value = post.excerpt || "";
+      document.getElementById("input-content").value = post.content;
+      document.getElementById("input-published").checked = post.published;
+      renderTagCheckboxes(post.tags.map(t => t.id));
+      showView("view-form");
+    }
+
+    // ── Delete post ────────────────────────────────────────
+    async function deletePost(id, title) {
+      if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+      await fetch(`${API}/posts/${id}`, { method: "DELETE", headers: authHeaders() });
+      showToast("Post deleted.");
+      loadPosts();
+    }
+
+    // ── Tag checkboxes ─────────────────────────────────────
+    function renderTagCheckboxes(selectedIds = []) {
+      const wrap = document.getElementById("tag-checkboxes");
+      wrap.innerHTML = allTags.map(t => {
+        const checked = selectedIds.includes(t.id);
+        return `
+          <label class="tag-checkbox-label ${checked ? "checked" : ""}" data-tag-id="${t.id}">
+            <input type="checkbox" value="${t.id}" ${checked ? "checked" : ""} onchange="toggleTagLabel(this)" />
+            ${escHtml(t.name)}
+          </label>`;
+      }).join("");
+    }
+    function toggleTagLabel(input) {
+      input.closest(".tag-checkbox-label").classList.toggle("checked", input.checked);
+    }
+
+    document.getElementById("btn-add-tag").addEventListener("click", async () => {
+      const name = document.getElementById("new-tag-input").value.trim();
+      if (!name) return;
+      const res = await fetch(`${API}/tags`, {
+        method: "POST", headers: authHeaders(), body: JSON.stringify({ name })
+      });
+      if (res.ok) {
+        const newTag = await res.json();
+        await loadTags();
+        const checked = [...document.querySelectorAll("#tag-checkboxes input:checked")].map(i => parseInt(i.value));
+        checked.push(newTag.id);
+        renderTagCheckboxes(checked);
+        document.getElementById("new-tag-input").value = "";
+      }
+    });
+
+    // ── Save post ──────────────────────────────────────────
+    document.getElementById("post-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("btn-save");
+      const status = document.getElementById("form-status");
+      btn.disabled = true;
+      status.textContent = "Saving…";
+
+      const tagIds = [...document.querySelectorAll("#tag-checkboxes input:checked")].map(i => parseInt(i.value));
+      const body = {
+        title:     document.getElementById("input-title").value.trim(),
+        excerpt:   document.getElementById("input-excerpt").value.trim(),
+        content:   document.getElementById("input-content").value,
+        published: document.getElementById("input-published").checked,
+        tags:      tagIds,
+      };
+
+      const id = document.getElementById("post-id").value;
+      const res = await fetch(id ? `${API}/posts/${id}` : `${API}/posts`, {
+        method: id ? "PUT" : "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(body)
+      });
+
+      btn.disabled = false;
+      if (res.ok) {
+        showToast(id ? "Post updated!" : "Post created!");
+        status.textContent = "";
+        showView("view-posts");
+        loadPosts();
+      } else {
+        const err = await res.json();
+        status.textContent = "Error: " + (err.error || "unknown");
+      }
+    });
+
+    // ── Tag manager ────────────────────────────────────────
+    document.getElementById("btn-manage-tags").addEventListener("click", async () => {
+      await loadTags();
+      renderTagManager();
+      showView("view-tags");
+    });
+    document.getElementById("btn-back-from-tags").addEventListener("click", () => showView("view-posts"));
+
+    function renderTagManager() {
+      const el = document.getElementById("tags-list");
+      if (!allTags.length) { el.innerHTML = '<p style="color:var(--muted)">No tags yet.</p>'; return; }
+      el.innerHTML = allTags.map(t => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid var(--border)">
+          <span><strong>${escHtml(t.name)}</strong> <span style="color:var(--muted);font-size:0.82rem">${t.post_count} post${t.post_count !== 1 ? "s" : ""}</span></span>
+          <button class="btn btn-danger" style="padding:0.3rem 0.7rem;font-size:0.82rem" onclick="deleteTag(${t.id}, '${escHtml(t.name)}')">Delete</button>
+        </div>
+      `).join("");
+    }
+
+    document.getElementById("btn-create-tag").addEventListener("click", async () => {
+      const name = document.getElementById("new-tag-main").value.trim();
+      if (!name) return;
+      await fetch(`${API}/tags`, { method: "POST", headers: authHeaders(), body: JSON.stringify({ name }) });
+      document.getElementById("new-tag-main").value = "";
+      await loadTags();
+      renderTagManager();
+      showToast("Tag created.");
+    });
+
+    async function deleteTag(id, name) {
+      if (!confirm(`Delete tag "${name}"?`)) return;
+      await fetch(`${API}/tags/${id}`, { method: "DELETE", headers: authHeaders() });
+      await loadTags();
+      renderTagManager();
+      showToast("Tag deleted.");
+    }
+
+    // ── User manager ───────────────────────────────────────
+    document.getElementById("btn-manage-users").addEventListener("click", async () => {
+      await loadUsers();
+      showView("view-users");
+    });
+    document.getElementById("btn-back-from-users").addEventListener("click", () => showView("view-posts"));
+    document.getElementById("btn-cancel-user").addEventListener("click", () => showView("view-users"));
+
+    async function loadUsers() {
+      const res = await fetch(`${API}/users`, { headers: authHeaders() });
+      const users = await res.json();
+      renderUsersTable(users);
+    }
+
+    function renderUsersTable(users) {
+      const tbody = document.getElementById("users-tbody");
+      if (!users.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:2rem">No users found.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = users.map(u => `
+        <tr>
+          <td><strong>${escHtml(u.username)}</strong></td>
+          <td>${escHtml(u.email)}</td>
+          <td><span class="role-badge role-${u.role}">${u.role}</span></td>
+          <td>${formatDate(u.created_at)}</td>
+          <td>
+            <div class="actions">
+              <button class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem" onclick="editUser(${u.id}, '${escHtml(u.username)}', '${escHtml(u.email)}', '${u.role}')">Edit</button>
+              ${u.id !== currentUser.id
+                ? `<button class="btn btn-danger" style="padding:0.3rem 0.7rem;font-size:0.82rem" onclick="deleteUser(${u.id}, '${escHtml(u.username)}')">Delete</button>`
+                : `<span style="font-size:0.82rem;color:var(--muted);padding:0.3rem 0.5rem">(you)</span>`
+              }
+            </div>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    document.getElementById("btn-new-user").addEventListener("click", () => {
+      document.getElementById("user-form-title").textContent = "New User";
+      document.getElementById("user-form").reset();
+      document.getElementById("user-id").value = "";
+      document.getElementById("pw-hint").textContent = "*";
+      document.getElementById("user-password").required = true;
+      showView("view-user-form");
+    });
+
+    function editUser(id, username, email, role) {
+      document.getElementById("user-form-title").textContent = "Edit User";
+      document.getElementById("user-id").value = id;
+      document.getElementById("user-username").value = username;
+      document.getElementById("user-email").value = email;
+      document.getElementById("user-role").value = role;
+      document.getElementById("user-password").value = "";
+      document.getElementById("user-password").required = false;
+      document.getElementById("pw-hint").textContent = "(leave blank to keep current)";
+      showView("view-user-form");
+    }
+
+    document.getElementById("user-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("btn-save-user");
+      const status = document.getElementById("user-form-status");
+      btn.disabled = true;
+      status.textContent = "Saving…";
+
+      const id = document.getElementById("user-id").value;
+      const body = {
+        username: document.getElementById("user-username").value.trim(),
+        email:    document.getElementById("user-email").value.trim(),
+        role:     document.getElementById("user-role").value,
+      };
+      const pw = document.getElementById("user-password").value;
+      if (pw) body.password = pw;
+
+      const res = await fetch(id ? `${API}/users/${id}` : `${API}/users`, {
+        method: id ? "PUT" : "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(body)
+      });
+
+      btn.disabled = false;
+      if (res.ok) {
+        showToast(id ? "User updated!" : "User created!");
+        status.textContent = "";
+        await loadUsers();
+        showView("view-users");
+      } else {
+        const err = await res.json();
+        status.textContent = "Error: " + (err.error || "unknown");
+      }
+    });
+
+    async function deleteUser(id, username) {
+      if (!confirm(`Delete user "${username}"? This cannot be undone.`)) return;
+      const res = await fetch(`${API}/users/${id}`, { method: "DELETE", headers: authHeaders() });
+      if (res.ok) { showToast("User deleted."); await loadUsers(); }
+      else { const err = await res.json(); showToast("Error: " + err.error); }
+    }
+
+    // ── Init ───────────────────────────────────────────────
+    (async () => {
+      const ok = await checkAuth();
+      if (!ok) return;
+      await loadTags();
+      loadPosts();
+    })();
+
+    // ── Image manager ──────────────────────────────────────
+    document.getElementById("btn-manage-images").addEventListener("click", async () => {
+      showView("view-images");
+      await loadImages();
+    });
+    document.getElementById("btn-back-from-images").addEventListener("click", () => showView("view-posts"));
+
+    async function loadImages() {
+      const grid = document.getElementById("image-grid");
+      grid.innerHTML = '<div style="color:var(--muted);padding:1rem">Loading…</div>';
+      const res = await fetch(`${API}/images`, { headers: authHeaders() });
+      if (!res.ok) { grid.innerHTML = '<div style="color:var(--danger);padding:1rem">Failed to load images.</div>'; return; }
+      const images = await res.json();
+      renderImageGrid(images);
+    }
+
+    function renderImageGrid(images) {
+      const grid = document.getElementById("image-grid");
+      if (!images.length) {
+        grid.innerHTML = '<div class="empty-state">No images yet. Upload one to get started.</div>';
+        return;
+      }
+      grid.innerHTML = images.map(img => `
+        <div class="image-card">
+          <div class="image-thumb-wrap" onclick="openLightbox('/api/images/proxy/${encodeURIComponent(img.key).replace(/%2F/g,'/')}', '${escHtml(img.filename)}')">
+            <img class="image-thumb" src="${escHtml(img.thumbnailUrl)}" alt="${escHtml(img.filename)}" loading="lazy" />
+          </div>
+          <div class="image-card-info">
+            <div class="image-name" title="${escHtml(img.filename)}">${escHtml(img.filename)}</div>
+            <div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.4rem">${formatBytes(img.size)}</div>
+            <div class="image-card-actions">
+              <button class="btn btn-secondary" style="padding:0.2rem 0.6rem;font-size:0.78rem" onclick="copyMarkdown('${escHtml(img.proxyUrl)}', '${escHtml(img.filename)}')">Copy MD</button>
+              <button class="btn btn-danger"    style="padding:0.2rem 0.6rem;font-size:0.78rem" onclick="deleteImage('${escHtml(img.key)}', '${escHtml(img.filename)}')">Delete</button>
+            </div>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function formatBytes(b) {
+      if (b < 1024) return b + " B";
+      if (b < 1024 * 1024) return (b / 1024).toFixed(1) + " KB";
+      return (b / (1024 * 1024)).toFixed(1) + " MB";
+    }
+
+    // Upload
+    document.getElementById("img-file-input").addEventListener("change", async (e) => {
+      const files = [...e.target.files];
+      if (!files.length) return;
+      const progress = document.getElementById("upload-progress");
+      const bar      = document.getElementById("upload-bar");
+      const status   = document.getElementById("upload-status");
+      progress.style.display = "block";
+
+      for (let i = 0; i < files.length; i++) {
+        status.textContent = `Uploading ${i + 1} of ${files.length}: ${files[i].name}`;
+        bar.style.width = `${(i / files.length) * 100}%`;
+        const form = new FormData();
+        form.append("image", files[i]);
+        await fetch(`${API}/images`, {
+          method: "POST",
+          headers: { "Authorization": "Bearer " + localStorage.getItem("authToken") },
+          body: form,
+        });
+      }
+
+      bar.style.width = "100%";
+      status.textContent = `Done — ${files.length} image${files.length > 1 ? "s" : ""} uploaded.`;
+      setTimeout(() => { progress.style.display = "none"; bar.style.width = "0%"; }, 2500);
+      e.target.value = "";
+      await loadImages();
+    });
+
+    async function deleteImage(key, filename) {
+      if (!confirm(`Delete "${filename}"? This cannot be undone.`)) return;
+      const res = await fetch(`${API}/images/${key}`, { method: "DELETE", headers: authHeaders() });
+      if (res.ok) { showToast("Image deleted."); await loadImages(); }
+      else { const err = await res.json(); showToast("Error: " + err.error); }
+    }
+
+    function copyMarkdown(proxyUrl, filename) {
+      const md = `![${filename}](${proxyUrl})`;
+      navigator.clipboard.writeText(md).then(() => showToast("Markdown copied to clipboard!"));
+    }
+
+    // Lightbox
+    function openLightbox(url, filename) {
+      document.getElementById("lightbox-img").src = url;
+      document.getElementById("lightbox-caption").textContent = filename;
+      document.getElementById("lightbox").style.display = "flex";
+      document.body.style.overflow = "hidden";
+    }
+    function closeLightbox() {
+      document.getElementById("lightbox").style.display = "none";
+      document.getElementById("lightbox-img").src = "";
+      document.body.style.overflow = "";
+    }
+    document.addEventListener("keydown", e => { if (e.key === "Escape") closeLightbox(); });
+
+    // Theme toggle
+    const themeBtn = document.getElementById("theme-toggle");
+    function applyTheme(theme) {
+      document.documentElement.setAttribute("data-theme", theme);
+      themeBtn.textContent = theme === "dark" ? "☀️" : "🌙";
+      localStorage.setItem("theme", theme);
+    }
+    themeBtn.textContent = (document.documentElement.getAttribute("data-theme") || "light") === "dark" ? "☀️" : "🌙";
+    themeBtn.addEventListener("click", () => {
+      applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Post</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <a class="site-title" href="/">My Blog</a>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/admin.html" id="nav-admin" style="display:none">Admin</a>
+        <a href="/login.html" id="nav-login">Login</a>
+      </nav>
+      <button id="theme-toggle" title="Toggle dark mode">🌙</button>
+    </div>
+  </header>
+  <script>
+    (function() {
+      const saved = localStorage.getItem("theme");
+      if (saved) document.documentElement.setAttribute("data-theme", saved);
+      else if (window.matchMedia("(prefers-color-scheme: dark)").matches)
+        document.documentElement.setAttribute("data-theme", "dark");
+    })();
+  </script>
+
+  <main class="container">
+    <div id="loading">Loading…</div>
+    <article id="post-container" style="display:none">
+      <div class="post-header">
+        <h1 id="post-title"></h1>
+        <div class="meta">
+          <span id="post-date"></span>
+          <span id="post-tags" style="margin-left:0.75rem"></span>
+        </div>
+      </div>
+      <div class="post-body" id="post-body"></div>
+      <div style="margin-top:2rem">
+        <a href="/" class="btn btn-secondary">← Back to posts</a>
+      </div>
+    </article>
+    <div id="not-found" style="display:none" class="empty-state">Post not found.</div>
+  </main>
+
+  <!-- marked.js for Markdown rendering (pinned to stable v4) -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
+  <script>
+    const API = "/api";
+
+    function escHtml(s) {
+      return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+    function formatDate(iso) {
+      return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    }
+
+    async function load() {
+      const slug = new URLSearchParams(location.search).get("slug");
+      if (!slug) { showNotFound(); return; }
+
+      const res = await fetch(`${API}/posts/${slug}`);
+      document.getElementById("loading").style.display = "none";
+
+      if (!res.ok) { showNotFound(); return; }
+
+      const post = await res.json();
+      document.title = post.title + " — My Blog";
+
+      document.getElementById("post-title").textContent = post.title;
+      document.getElementById("post-date").textContent = formatDate(post.created_at);
+      document.getElementById("post-tags").innerHTML = post.tags
+        .map(t => `<a href="/?tag=${t.slug}" class="tag">${escHtml(t.name)}</a>`)
+        .join(" ");
+
+      // Render markdown
+      try {
+        document.getElementById("post-body").innerHTML = marked.parse(post.content || "");
+      } catch (e) {
+        document.getElementById("post-body").textContent = post.content || "";
+      }
+
+      document.getElementById("post-container").style.display = "block";
+    }
+
+    function showNotFound() {
+      document.getElementById("loading").style.display = "none";
+      document.getElementById("not-found").style.display = "block";
+    }
+
+    if (localStorage.getItem("authToken")) {
+      document.getElementById("nav-admin").style.display = "";
+      document.getElementById("nav-login").style.display = "none";
+    }
+
+    load();
+
+    // Theme toggle
+    const btn = document.getElementById("theme-toggle");
+    function applyTheme(theme) {
+      document.documentElement.setAttribute("data-theme", theme);
+      btn.textContent = theme === "dark" ? "☀️" : "🌙";
+      localStorage.setItem("theme", theme);
+    }
+    const current = document.documentElement.getAttribute("data-theme") || "light";
+    btn.textContent = current === "dark" ? "☀️" : "🌙";
+    btn.addEventListener("click", () => {
+      applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+    });
+  </script>
+</body>
+</html>
