@@ -17,8 +17,10 @@ const { verifyToken, requireRole } = require("../middleware/auth");
 
 const SIGNED_URL_TTL = 3600; // 1 hour (for admin thumbnail display)
 const THUMB_SIZE     = 300;
-const ORIG_PREFIX    = "originals/";
-const THUMB_PREFIX   = "thumbnails/";
+const CARD_SIZE      = 800;
+const ORIG_PREFIX    = process.env.AWS_S3_IMAGES_PREFIX    || "images/";
+const THUMB_PREFIX   = process.env.AWS_S3_THUMBNAILS_PREFIX || "thumbnails/";
+const CARD_PREFIX    = process.env.AWS_S3_CARDS_PREFIX      || "cards/";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -54,11 +56,18 @@ async function listAll(prefix) {
 // Authenticated users only.
 router.get("/", verifyToken, requireRole("admin", "contributor"), async (req, res) => {
   try {
+    const query     = (req.query.q || "").toLowerCase().trim();
+    const terms     = query ? query.split(/\s+/) : [];
     const originals = await listAll(ORIG_PREFIX);
 
     const images = await Promise.all(
       originals
-        .filter(obj => obj.Size > 0) // skip folder placeholder objects
+        .filter(obj => {
+          if (obj.Size === 0) return false; // skip folder placeholder objects
+          if (!terms.length) return true;
+          const name = path.basename(obj.Key).toLowerCase();
+          return terms.every(term => name.includes(term));
+        })
         .map(async obj => {
           const filename    = path.basename(obj.Key);
           const thumbKey    = THUMB_PREFIX + filename;
@@ -107,28 +116,40 @@ router.post("/", verifyToken, requireRole("admin", "contributor"), upload.single
   const basename = uuid + ext;
   const origKey  = ORIG_PREFIX  + basename;
   const thumbKey = THUMB_PREFIX + basename;
+  const cardKey  = CARD_PREFIX  + basename;
 
   try {
-    // Generate thumbnail
-    const thumbBuffer = await sharp(req.file.buffer)
-      .resize(THUMB_SIZE, THUMB_SIZE, { fit: "cover", withoutEnlargement: true })
-      .toBuffer();
+    // Generate thumbnail and card image
+    const [thumbBuffer, cardBuffer] = await Promise.all([
+      sharp(req.file.buffer)
+        .resize(THUMB_SIZE, THUMB_SIZE, { fit: "cover", withoutEnlargement: true })
+        .toBuffer(),
+      sharp(req.file.buffer)
+        .resize(CARD_SIZE, CARD_SIZE, { fit: "inside", withoutEnlargement: true })
+        .toBuffer(),
+    ]);
 
-    // Upload original
-    await s3.send(new PutObjectCommand({
-      Bucket:      BUCKET,
-      Key:         origKey,
-      Body:        req.file.buffer,
-      ContentType: req.file.mimetype,
-    }));
-
-    // Upload thumbnail
-    await s3.send(new PutObjectCommand({
-      Bucket:      BUCKET,
-      Key:         thumbKey,
-      Body:        thumbBuffer,
-      ContentType: req.file.mimetype,
-    }));
+    // Upload original, thumbnail, and card image
+    await Promise.all([
+      s3.send(new PutObjectCommand({
+        Bucket:      BUCKET,
+        Key:         origKey,
+        Body:        req.file.buffer,
+        ContentType: req.file.mimetype,
+      })),
+      s3.send(new PutObjectCommand({
+        Bucket:      BUCKET,
+        Key:         thumbKey,
+        Body:        thumbBuffer,
+        ContentType: req.file.mimetype,
+      })),
+      s3.send(new PutObjectCommand({
+        Bucket:      BUCKET,
+        Key:         cardKey,
+        Body:        cardBuffer,
+        ContentType: req.file.mimetype,
+      })),
+    ]);
 
     const thumbUrl = await signedUrl(thumbKey);
     res.status(201).json({
@@ -136,6 +157,7 @@ router.post("/", verifyToken, requireRole("admin", "contributor"), upload.single
       filename:     req.file.originalname,
       size:         req.file.size,
       thumbnailUrl: thumbUrl,
+      cardProxyUrl: `/api/images/proxy/${cardKey}`,
       proxyUrl:     `/api/images/proxy/${origKey}`,
     });
   } catch (err) {
@@ -150,10 +172,14 @@ router.delete("/*", verifyToken, requireRole("admin"), async (req, res) => {
 
   const filename = path.basename(key);
   const thumbKey = THUMB_PREFIX + filename;
+  const cardKey  = CARD_PREFIX  + filename;
 
   try {
-    await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
-    await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: thumbKey }));
+    await Promise.all([
+      s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key })),
+      s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: thumbKey })),
+      s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: cardKey })),
+    ]);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

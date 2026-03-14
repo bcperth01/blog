@@ -133,9 +133,10 @@
     <!-- ── Image manager ── -->
     <div id="view-images" style="display:none">
       <h2 class="page-title">Images</h2>
-      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap">
+      <div class="upload-row" style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap">
         <label class="btn btn-primary" for="img-file-input" style="cursor:pointer">↑ Upload Images</label>
         <input type="file" id="img-file-input" accept="image/*" multiple style="display:none" />
+        <input type="text" id="img-search" placeholder="Search images…" style="flex:1;min-width:180px;padding:0.5rem 0.75rem;border:1px solid var(--border);border-radius:var(--radius);font-size:0.95rem;background:var(--bg);color:var(--text)" />
         <div id="upload-progress" style="display:none;flex:1;min-width:200px">
           <div style="font-size:0.85rem;color:var(--muted)" id="upload-status"></div>
           <div style="background:var(--border);border-radius:4px;height:5px;margin-top:5px">
@@ -547,15 +548,24 @@
 
     // ── Image manager ──────────────────────────────────────
     document.getElementById("btn-manage-images").addEventListener("click", async () => {
+      document.getElementById("img-search").value = "";
       showView("view-images");
       await loadImages();
     });
     document.getElementById("btn-back-from-images").addEventListener("click", () => showView("view-posts"));
 
+    let searchDebounce;
+    document.getElementById("img-search").addEventListener("input", () => {
+      clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(() => loadImages(), 300);
+    });
+
     async function loadImages() {
-      const grid = document.getElementById("image-grid");
+      const grid  = document.getElementById("image-grid");
+      const query = document.getElementById("img-search").value.trim();
       grid.innerHTML = '<div style="color:var(--muted);padding:1rem">Loading…</div>';
-      const res = await fetch(`${API}/images`, { headers: authHeaders() });
+      const url = query ? `${API}/images?q=${encodeURIComponent(query)}` : `${API}/images`;
+      const res = await fetch(url, { headers: authHeaders() });
       if (!res.ok) { grid.innerHTML = '<div style="color:var(--danger);padding:1rem">Failed to load images.</div>'; return; }
       const images = await res.json();
       renderImageGrid(images);
