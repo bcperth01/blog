@@ -324,7 +324,7 @@
               <button class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem" onclick="editPost(${p.id}, '${p.slug}')">Edit</button>
               ${currentUser.role === "admin" || p.author_id === currentUser.id ? `<button class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem" onclick="togglePublish(${p.id}, ${p.published})">${p.published ? "Unpublish" : "Publish"}</button>` : ""}
               <button class="btn btn-danger"    style="padding:0.3rem 0.7rem;font-size:0.82rem" onclick="deletePost(${p.id}, '${escHtml(p.title)}')">Delete</button>
-              <a class="btn btn-secondary" href="/post.html?slug=${p.slug}" target="_blank" style="padding:0.3rem 0.7rem;font-size:0.82rem">View</a>
+              <a class="btn btn-secondary" href="/post.html?slug=${p.slug}" style="padding:0.3rem 0.7rem;font-size:0.82rem">View</a>
             </div>
           </td>
         </tr>
