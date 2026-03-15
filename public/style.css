@@ -215,7 +215,7 @@ nav a:hover, nav a.active { color: var(--accent); text-decoration: none; }
 .post-body code { background: var(--border); padding: 0.1rem 0.35rem; border-radius: 4px; font-size: 0.9em; }
 .post-body pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: var(--radius); overflow-x: auto; margin-bottom: 1rem; }
 .post-body pre code { background: none; padding: 0; }
-.post-body img { max-width: 100%; border-radius: var(--radius); }
+.post-body img { display: block; max-width: 100%; margin: 1.5rem auto; border-radius: var(--radius); }
 
 /* ── Admin form ───────────────────────────────────────────── */
 .form-card {

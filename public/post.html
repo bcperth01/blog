@@ -47,6 +47,9 @@
 
   <!-- marked.js for Markdown rendering (pinned to stable v4) -->
   <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
+  <!-- Viewer.js — image lightbox with pan & zoom -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.js"></script>
   <script>
     const API = "/api";
 
@@ -76,11 +79,25 @@
         .join(" ");
 
       // Render markdown
+      const postBody = document.getElementById("post-body");
       try {
-        document.getElementById("post-body").innerHTML = marked.parse(post.content || "");
+        postBody.innerHTML = marked.parse(post.content || "");
       } catch (e) {
-        document.getElementById("post-body").textContent = post.content || "";
+        postBody.textContent = post.content || "";
       }
+
+      // Set up image viewer — map any embedded image to its full-size proxy URL
+      postBody.querySelectorAll("img").forEach(img => {
+        const filename = img.src.split("/").pop().split("?")[0];
+        img.setAttribute("data-original-src", `/api/images/proxy/images/${filename}`);
+        img.style.cursor = "zoom-in";
+      });
+      new Viewer(postBody, {
+        url:     "data-original-src",
+        navbar:  false,
+        title:   true,
+        toolbar: { zoomIn: 1, zoomOut: 1, reset: 1, rotateLeft: 0, rotateRight: 0, flipHorizontal: 0, flipVertical: 0 },
+      });
 
       document.getElementById("post-container").style.display = "block";
     }

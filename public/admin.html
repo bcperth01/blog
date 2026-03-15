@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin — My Blog</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.css" />
 </head>
 <body>
   <header>
@@ -196,6 +197,7 @@
   </div>
 
   <div class="toast" id="toast"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.js"></script>
 
   <script>
     const API = "/api";
@@ -288,6 +290,7 @@
           <td>
             <div class="actions">
               <button class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem" onclick="editPost(${p.id}, '${p.slug}')">Edit</button>
+              ${currentUser.role === "admin" || p.author_id === currentUser.id ? `<button class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem" onclick="togglePublish(${p.id}, ${p.published})">${p.published ? "Unpublish" : "Publish"}</button>` : ""}
               <button class="btn btn-danger"    style="padding:0.3rem 0.7rem;font-size:0.82rem" onclick="deletePost(${p.id}, '${escHtml(p.title)}')">Delete</button>
               <a class="btn btn-secondary" href="/post.html?slug=${p.slug}" target="_blank" style="padding:0.3rem 0.7rem;font-size:0.82rem">View</a>
             </div>
@@ -330,6 +333,76 @@
       await fetch(`${API}/posts/${id}`, { method: "DELETE", headers: authHeaders() });
       showToast("Post deleted.");
       loadPosts();
+    }
+
+    // ── Paste image into content area ──────────────────────
+    document.getElementById("input-content").addEventListener("paste", async (e) => {
+      const textarea = e.target;
+      const start    = textarea.selectionStart;
+      const end      = textarea.selectionEnd;
+
+      // Case 1: image file pasted (e.g. screenshot)
+      const file = [...(e.clipboardData?.files || [])].find(f => f.type.startsWith("image/"));
+      if (file) {
+        e.preventDefault();
+        const placeholder = `![Uploading ${file.name}…]()`;
+        textarea.setRangeText(placeholder, start, end, "end");
+
+        const form = new FormData();
+        form.append("image", file);
+        const res = await fetch(`${API}/images`, {
+          method: "POST",
+          headers: { "Authorization": "Bearer " + localStorage.getItem("authToken") },
+          body: form,
+        });
+
+        const content = textarea.value;
+        if (res.ok) {
+          const img = await res.json();
+          textarea.value = content.replace(placeholder, `![${file.name}](${img.thumbProxyUrl})`);
+          showToast("Image uploaded.");
+        } else {
+          textarea.value = content.replace(placeholder, "");
+          showToast("Image upload failed.");
+        }
+        return;
+      }
+
+      // Case 2: pasted text contains proxy URL markdown — resolve to presigned URLs
+      const text = e.clipboardData?.getData("text") || "";
+      const proxyMatches = [...text.matchAll(/!\[([^\]]*)\]\(\/api\/images\/proxy\/([^)]+)\)/g)];
+      if (!proxyMatches.length) return;
+
+      e.preventDefault();
+      let resolved = text;
+      for (const [fullMatch, alt, key] of proxyMatches) {
+        try {
+          // Use card-size variant by swapping the images/ prefix to cards/
+          const cardKey = key.replace(/^images\//, "thumbnails/");
+          const res = await fetch(`${API}/images/presign?key=${encodeURIComponent(cardKey)}`, { headers: authHeaders() });
+          if (res.ok) {
+            const { url } = await res.json();
+            resolved = resolved.replace(fullMatch, `![${alt}](${url})`);
+          }
+        } catch (_) { /* leave original if lookup fails */ }
+      }
+      textarea.setRangeText(resolved, start, end, "end");
+    });
+
+    // ── Toggle publish ─────────────────────────────────────
+    async function togglePublish(id, currentlyPublished) {
+      const res = await fetch(`${API}/posts/${id}`, {
+        method: "PUT",
+        headers: authHeaders(),
+        body: JSON.stringify({ published: !currentlyPublished }),
+      });
+      if (res.ok) {
+        showToast(currentlyPublished ? "Post unpublished." : "Post published.");
+        loadPosts();
+      } else {
+        const err = await res.json();
+        showToast("Error: " + (err.error || "unknown"));
+      }
     }
 
     // ── Tag checkboxes ─────────────────────────────────────
@@ -414,7 +487,7 @@
       el.innerHTML = allTags.map(t => `
         <div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid var(--border)">
           <span><strong>${escHtml(t.name)}</strong> <span style="color:var(--muted);font-size:0.82rem">${t.post_count} post${t.post_count !== 1 ? "s" : ""}</span></span>
-          <button class="btn btn-danger" style="padding:0.3rem 0.7rem;font-size:0.82rem" onclick="deleteTag(${t.id}, '${escHtml(t.name)}')">Delete</button>
+          <button class="btn btn-danger" style="padding:0.3rem 0.7rem;font-size:0.82rem" onclick="deleteTag(${t.id}, '${escHtml(t.name)}')" ${currentUser.role !== "admin" ? 'disabled title="Admin only"' : ""}>Delete</button>
         </div>
       `).join("");
     }
@@ -571,7 +644,10 @@
       renderImageGrid(images);
     }
 
+    let imageGridViewer = null;
+
     function renderImageGrid(images) {
+      if (imageGridViewer) { imageGridViewer.destroy(); imageGridViewer = null; }
       const grid = document.getElementById("image-grid");
       if (!images.length) {
         grid.innerHTML = '<div class="empty-state">No images yet. Upload one to get started.</div>';
@@ -579,19 +655,26 @@
       }
       grid.innerHTML = images.map(img => `
         <div class="image-card">
-          <div class="image-thumb-wrap" onclick="openLightbox('/api/images/proxy/${encodeURIComponent(img.key).replace(/%2F/g,'/')}', '${escHtml(img.filename)}')">
-            <img class="image-thumb" src="${escHtml(img.thumbnailUrl)}" alt="${escHtml(img.filename)}" loading="lazy" />
+          <div class="image-thumb-wrap" style="cursor:zoom-in">
+            <img class="image-thumb" src="${escHtml(img.thumbnailUrl)}" alt="${escHtml(img.filename)}" loading="lazy" data-original-src="/api/images/proxy/${encodeURIComponent(img.key).replace(/%2F/g,'/')}" />
           </div>
           <div class="image-card-info">
             <div class="image-name" title="${escHtml(img.filename)}">${escHtml(img.filename)}</div>
             <div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.4rem">${formatBytes(img.size)}</div>
             <div class="image-card-actions">
-              <button class="btn btn-secondary" style="padding:0.2rem 0.6rem;font-size:0.78rem" onclick="copyMarkdown('${escHtml(img.proxyUrl)}', '${escHtml(img.filename)}')">Copy MD</button>
-              <button class="btn btn-danger"    style="padding:0.2rem 0.6rem;font-size:0.78rem" onclick="deleteImage('${escHtml(img.key)}', '${escHtml(img.filename)}')">Delete</button>
+              <button class="btn btn-secondary" style="padding:0.2rem 0.6rem;font-size:0.78rem" onclick="copyMarkdown('${escHtml(img.thumbProxyUrl)}', '${escHtml(img.filename)}')">Copy MD</button>
+              <button class="btn btn-danger"    style="padding:0.2rem 0.6rem;font-size:0.78rem" onclick="deleteImage('${escHtml(img.key)}', '${escHtml(img.filename)}')" ${currentUser.role !== "admin" ? 'disabled title="Admin only"' : ""}>Delete</button>
             </div>
           </div>
         </div>
       `).join("");
+
+      imageGridViewer = new Viewer(grid, {
+        url:     "data-original-src",
+        navbar:  false,
+        title:   true,
+        toolbar: { zoomIn: 1, zoomOut: 1, reset: 1, rotateLeft: 0, rotateRight: 0, flipHorizontal: 0, flipVertical: 0 },
+      });
     }
 
     function formatBytes(b) {

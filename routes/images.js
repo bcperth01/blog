@@ -69,17 +69,21 @@ router.get("/", verifyToken, requireRole("admin", "contributor"), async (req, re
           return terms.every(term => name.includes(term));
         })
         .map(async obj => {
-          const filename    = path.basename(obj.Key);
-          const thumbKey    = THUMB_PREFIX + filename;
-          const thumbUrl    = await signedUrl(thumbKey);
-          const proxyUrl    = `/api/images/proxy/${obj.Key}`;
+          const filename     = path.basename(obj.Key);
+          const thumbKey     = THUMB_PREFIX + filename;
+          const thumbUrl     = await signedUrl(thumbKey);
+          const proxyUrl     = `/api/images/proxy/${obj.Key}`;
+          const cardProxyUrl = `/api/images/proxy/${CARD_PREFIX}${filename}`;
+          const thumbProxyUrl = `/api/images/proxy/${THUMB_PREFIX}${filename}`;
           return {
             key:          obj.Key,
             filename:     filename,
             size:         obj.Size,
             lastModified: obj.LastModified,
-            thumbnailUrl: thumbUrl,       // signed, for admin grid display (expires)
-            proxyUrl:     proxyUrl,       // permanent proxy for embedding in posts
+            thumbnailUrl:  thumbUrl,       // signed, for admin grid display (expires)
+            proxyUrl:      proxyUrl,       // permanent proxy for full-size image
+            cardProxyUrl:  cardProxyUrl,   // permanent proxy for card-size image
+            thumbProxyUrl: thumbProxyUrl,  // permanent proxy for thumbnail
           };
         })
     );
@@ -87,6 +91,18 @@ router.get("/", verifyToken, requireRole("admin", "contributor"), async (req, re
     // Newest first
     images.sort((a, b) => new Date(b.lastModified) - new Date(a.lastModified));
     res.json(images);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/images/presign?key=... — return presigned URL as JSON (authenticated)
+router.get("/presign", verifyToken, requireRole("admin", "contributor"), async (req, res) => {
+  const { key } = req.query;
+  if (!key) return res.status(400).json({ error: "key is required" });
+  try {
+    const url = await signedUrl(key);
+    res.json({ url });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
