@@ -217,6 +217,10 @@ nav a:hover, nav a.active { color: var(--accent); text-decoration: none; }
 .post-body pre code { background: none; padding: 0; }
 .post-body img { display: block; max-width: 100%; margin: 1.5rem auto; border-radius: var(--radius); }
 
+/* Multiple images on consecutive lines render side-by-side */
+.post-body .img-row { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; align-items: flex-start; margin: 1.5rem 0; }
+.post-body .img-row img { flex: 0 0 auto; max-width: 100%; margin: 0; }
+
 /* ── Admin form ───────────────────────────────────────────── */
 .form-card {
   background: var(--surface);

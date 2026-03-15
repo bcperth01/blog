@@ -86,6 +86,12 @@
         postBody.textContent = post.content || "";
       }
 
+      // Paragraphs containing only images get a flex-row class for horizontal layout
+      postBody.querySelectorAll("p").forEach(p => {
+        const nodes = [...p.childNodes].filter(n => !(n.nodeType === Node.TEXT_NODE && !n.textContent.trim()));
+        if (nodes.length > 1 && nodes.every(n => n.nodeName === "IMG")) p.classList.add("img-row");
+      });
+
       // Set up image viewer — map any embedded image to its full-size proxy URL
       postBody.querySelectorAll("img").forEach(img => {
         const filename = img.src.split("/").pop().split("?")[0];

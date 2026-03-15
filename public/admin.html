@@ -71,7 +71,10 @@
             <input type="text" id="input-excerpt" placeholder="Brief description shown on the post list" />
           </div>
           <div class="form-group">
-            <label for="input-content">Content * <span style="font-weight:400;color:var(--muted)">(Markdown supported)</span></label>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.35rem">
+              <label for="input-content" style="margin:0">Content * <span style="font-weight:400;color:var(--muted)">(Markdown supported)</span></label>
+              <button type="button" class="btn btn-secondary" id="btn-insert-image" style="padding:0.25rem 0.7rem;font-size:0.82rem">📷 Insert Image</button>
+            </div>
             <textarea class="code-area" id="input-content" placeholder="Write your post in Markdown…" required></textarea>
           </div>
           <div class="form-group">
@@ -186,6 +189,18 @@
     </div>
 
   </main>
+
+  <!-- ── Image picker modal ── -->
+  <div id="image-picker-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;padding:2rem;overflow-y:auto">
+    <div style="background:var(--surface);border-radius:var(--radius);max-width:900px;margin:0 auto;padding:1.5rem">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem">
+        <h3 style="margin:0;flex:1">Insert Image</h3>
+        <input type="text" id="picker-search" placeholder="Search images…" style="flex:2;padding:0.45rem 0.75rem;border:1px solid var(--border);border-radius:var(--radius);font-size:0.9rem;background:var(--bg);color:var(--text)" />
+        <button class="btn btn-secondary" id="btn-picker-close" style="padding:0.3rem 0.75rem">✕ Close</button>
+      </div>
+      <div class="image-grid" id="picker-grid"></div>
+    </div>
+  </div>
 
   <!-- ── Lightbox ── -->
   <div class="lightbox-overlay" id="lightbox" style="display:none" onclick="closeLightbox()">
@@ -333,6 +348,71 @@
       await fetch(`${API}/posts/${id}`, { method: "DELETE", headers: authHeaders() });
       showToast("Post deleted.");
       loadPosts();
+    }
+
+    // ── Image picker ───────────────────────────────────────
+    let pickerDebounce;
+
+    document.getElementById("btn-insert-image").addEventListener("click", async () => {
+      document.getElementById("picker-search").value = "";
+      document.getElementById("image-picker-overlay").style.display = "block";
+      document.body.style.overflow = "hidden";
+      await loadPickerImages();
+    });
+
+    document.getElementById("btn-picker-close").addEventListener("click", closeImagePicker);
+    document.getElementById("image-picker-overlay").addEventListener("click", (e) => {
+      if (e.target === document.getElementById("image-picker-overlay")) closeImagePicker();
+    });
+
+    document.getElementById("picker-search").addEventListener("input", () => {
+      clearTimeout(pickerDebounce);
+      pickerDebounce = setTimeout(loadPickerImages, 300);
+    });
+
+    function closeImagePicker() {
+      document.getElementById("image-picker-overlay").style.display = "none";
+      document.body.style.overflow = "";
+    }
+
+    async function loadPickerImages() {
+      const grid  = document.getElementById("picker-grid");
+      const query = document.getElementById("picker-search").value.trim();
+      grid.innerHTML = '<div style="color:var(--muted);padding:1rem">Loading…</div>';
+      const url = query ? `${API}/images?q=${encodeURIComponent(query)}` : `${API}/images`;
+      const res = await fetch(url, { headers: authHeaders() });
+      if (!res.ok) { grid.innerHTML = '<div style="color:var(--danger);padding:1rem">Failed to load images.</div>'; return; }
+      const images = await res.json();
+      if (!images.length) { grid.innerHTML = '<div class="empty-state">No images found.</div>'; return; }
+      grid.innerHTML = images.map(img => `
+        <div class="image-card" style="cursor:pointer" onclick="insertImage('${escHtml(img.thumbProxyUrl)}', '${escHtml(img.filename)}')">
+          <div class="image-thumb-wrap">
+            <img class="image-thumb" src="${escHtml(img.thumbnailUrl)}" alt="${escHtml(img.filename)}" loading="lazy" />
+          </div>
+          <div class="image-card-info">
+            <div class="image-name" title="${escHtml(img.filename)}">${escHtml(img.filename)}</div>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    async function insertImage(proxyUrl, filename) {
+      closeImagePicker();
+      const textarea = document.getElementById("input-content");
+      const start    = textarea.selectionStart;
+      const end      = textarea.selectionEnd;
+
+      // Extract the S3 key from the proxy URL and resolve to a presigned URL
+      const key = proxyUrl.replace("/api/images/proxy/", "");
+      let url   = proxyUrl;
+      try {
+        const res = await fetch(`${API}/images/presign?key=${encodeURIComponent(key)}`, { headers: authHeaders() });
+        if (res.ok) url = (await res.json()).url;
+      } catch (_) { /* fall back to proxy URL */ }
+
+      textarea.setRangeText(`![${filename}](${url})`, start, end, "end");
+      textarea.focus();
+      showToast("Image inserted.");
     }
 
     // ── Paste image into content area ──────────────────────
