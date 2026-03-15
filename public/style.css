@@ -128,6 +128,18 @@ nav a:hover, nav a.active { color: var(--accent); text-decoration: none; }
 
 .search-row input:focus { outline: none; border-color: var(--accent); }
 
+.search-row button {
+  padding: 0.5rem 1rem;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+.search-row button:hover { opacity: 0.85; }
+
 /* ── Tag chips ────────────────────────────────────────────── */
 .tag-list {
   display: flex;

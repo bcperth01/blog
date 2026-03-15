@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>My Blog</title>
+  <title>Brendan's Blog</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
     <div class="header-inner">
-      <a class="site-title" href="/">My Blog</a>
+      <a class="site-title" href="/">Brendan's Blog</a>
       <nav>
         <a href="/" class="active">Home</a>
         <a href="/admin.html" id="nav-admin" style="display:none">Admin</a>
@@ -29,11 +29,12 @@
 
   <main class="container">
     <div class="search-row">
-      <input type="text" id="search-input" placeholder="Search posts…" autocomplete="off" />
+      <input type="text" id="search-input" placeholder="Search posts… (press Enter)" autocomplete="off" />
+      <button id="search-btn">Search</button>
     </div>
 
     <div class="tag-list" id="tag-list">
-      <span class="tag all active" data-slug="">All</span>
+      <span class="tag all active" data-slug="" onclick="selectTag('')">All</span>
     </div>
 
     <div id="loading">Loading…</div>
@@ -46,7 +47,6 @@
   <script>
     const API = "/api";
     let state = { search: "", tag: "", page: 1 };
-    let searchTimer;
 
     async function loadTags() {
       const res = await fetch(`${API}/tags`);
@@ -65,6 +65,10 @@
     function selectTag(slug) {
       state.tag = slug;
       state.page = 1;
+      if (!slug) {
+        state.search = "";
+        document.getElementById("search-input").value = "";
+      }
       document.querySelectorAll(".tag").forEach(el => {
         el.classList.toggle("active", el.dataset.slug === slug);
       });
@@ -125,14 +129,15 @@
 
     function goPage(p) { state.page = p; loadPosts(); window.scrollTo(0, 0); }
 
-    document.getElementById("search-input").addEventListener("input", e => {
-      clearTimeout(searchTimer);
-      searchTimer = setTimeout(() => {
-        state.search = e.target.value.trim();
-        state.page = 1;
-        loadPosts();
-      }, 350);
+    function doSearch() {
+      state.search = document.getElementById("search-input").value.trim();
+      state.page = 1;
+      loadPosts();
+    }
+    document.getElementById("search-input").addEventListener("keydown", e => {
+      if (e.key === "Enter") doSearch();
     });
+    document.getElementById("search-btn").addEventListener("click", doSearch);
 
     function formatDate(iso) {
       return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });

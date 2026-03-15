@@ -9,7 +9,7 @@
 <body>
   <header>
     <div class="header-inner">
-      <a class="site-title" href="/">My Blog</a>
+      <a class="site-title" href="/">Brendan's Blog</a>
       <nav>
         <a href="/">Home</a>
         <a href="/admin.html" id="nav-admin" style="display:none">Admin</a>
@@ -70,7 +70,7 @@
       if (!res.ok) { showNotFound(); return; }
 
       const post = await res.json();
-      document.title = post.title + " — My Blog";
+      document.title = post.title + " — Brendan's Blog";
 
       document.getElementById("post-title").textContent = post.title;
       document.getElementById("post-date").textContent = formatDate(post.created_at);

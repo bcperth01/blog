@@ -36,9 +36,11 @@ router.get("/", optionalAuth, async (req, res) => {
       params.push(published === "true");
       conditions.push(`p.published = $${params.length}`);
     }
+    let searchParamIdx = null;
     if (search) {
-      params.push(`%${search}%`);
-      conditions.push(`(p.title ILIKE $${params.length} OR p.content ILIKE $${params.length})`);
+      params.push(search);
+      searchParamIdx = params.length;
+      conditions.push(`p.search_vector @@ websearch_to_tsquery('english', $${searchParamIdx})`);
     }
     if (tag) {
       params.push(tag);
@@ -56,10 +58,13 @@ router.get("/", optionalAuth, async (req, res) => {
     const total = countRes.rows[0].count;
 
     params.push(parseInt(limit), offset);
+    const orderBy = searchParamIdx
+      ? `ts_rank(p.search_vector, websearch_to_tsquery('english', $${searchParamIdx})) DESC, p.created_at DESC`
+      : `p.created_at DESC`;
     const { rows } = await db.query(
       `SELECT p.id, p.title, p.slug, p.excerpt, p.published, p.created_at, p.updated_at, p.author_id
        FROM posts p ${where}
-       ORDER BY p.created_at DESC
+       ORDER BY ${orderBy}
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
       params
     );
