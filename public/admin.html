@@ -483,21 +483,17 @@
       `).join("");
     }
 
-    async function insertImage(proxyUrl, filename) {
+    function insertImage(proxyUrl, filename) {
       closeImagePicker();
       const textarea = document.getElementById("input-content");
       const start    = textarea.selectionStart;
       const end      = textarea.selectionEnd;
 
-      // Extract the S3 key from the proxy URL and resolve to a presigned URL
-      const key = proxyUrl.replace("/api/images/proxy/", "");
-      let url   = proxyUrl;
-      try {
-        const res = await fetch(`${API}/images/presign?key=${encodeURIComponent(key)}`, { headers: authHeaders() });
-        if (res.ok) url = (await res.json()).url;
-      } catch (_) { /* fall back to proxy URL */ }
+      // URL-encode the S3 key portion so spaces/special chars don't break markdown
+      const key        = proxyUrl.replace("/api/images/proxy/", "");
+      const encodedUrl = "/api/images/proxy/" + key.split("/").map(encodeURIComponent).join("/");
 
-      textarea.setRangeText(`![${filename}](${url})`, start, end, "end");
+      textarea.setRangeText(`![${filename}](${encodedUrl})`, start, end, "end");
       textarea.focus();
       showToast("Image inserted.");
     }
@@ -535,7 +531,7 @@
         return;
       }
 
-      // Case 2: pasted text contains proxy URL markdown — resolve to presigned URLs
+      // Case 2: pasted text contains proxy URL markdown — keep as proxy URLs (never expire)
       const text = e.clipboardData?.getData("text") || "";
       const proxyMatches = [...text.matchAll(/!\[([^\]]*)\]\(\/api\/images\/proxy\/([^)]+)\)/g)];
       if (!proxyMatches.length) return;
@@ -543,15 +539,10 @@
       e.preventDefault();
       let resolved = text;
       for (const [fullMatch, alt, key] of proxyMatches) {
-        try {
-          // Use card-size variant by swapping the images/ prefix to cards/
-          const cardKey = key.replace(/^images\//, "thumbnails/");
-          const res = await fetch(`${API}/images/presign?key=${encodeURIComponent(cardKey)}`, { headers: authHeaders() });
-          if (res.ok) {
-            const { url } = await res.json();
-            resolved = resolved.replace(fullMatch, `![${alt}](${url})`);
-          }
-        } catch (_) { /* leave original if lookup fails */ }
+        // Upgrade thumbnail proxy URLs to card-size on paste
+        const cardKey    = decodeURIComponent(key).replace(/^thumbnails\//, "cards/");
+        const encodedUrl = "/api/images/proxy/" + cardKey.split("/").map(encodeURIComponent).join("/");
+        resolved = resolved.replace(fullMatch, `![${alt}](${encodedUrl})`);
       }
       textarea.setRangeText(resolved, start, end, "end");
     });
