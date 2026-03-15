@@ -6,6 +6,7 @@
   <title>Admin — My Blog</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
 </head>
 <body>
   <header>
@@ -71,11 +72,15 @@
             <input type="text" id="input-excerpt" placeholder="Brief description shown on the post list" />
           </div>
           <div class="form-group">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.35rem">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.35rem;flex-wrap:wrap;gap:0.4rem">
               <label for="input-content" style="margin:0">Content * <span style="font-weight:400;color:var(--muted)">(Markdown supported)</span></label>
-              <button type="button" class="btn btn-secondary" id="btn-insert-image" style="padding:0.25rem 0.7rem;font-size:0.82rem">📷 Insert Image</button>
+              <div style="display:flex;gap:0.5rem">
+                <button type="button" class="btn btn-secondary" id="btn-insert-image" style="padding:0.25rem 0.7rem;font-size:0.82rem">📷 Insert Image</button>
+                <button type="button" class="btn btn-secondary" id="btn-preview" style="padding:0.25rem 0.7rem;font-size:0.82rem">👁 Preview</button>
+              </div>
             </div>
             <textarea class="code-area" id="input-content" placeholder="Write your post in Markdown…" required></textarea>
+            <div class="post-body form-card" id="content-preview" style="display:none;min-height:280px;margin-top:0;border-top-left-radius:0;border-top-right-radius:0"></div>
           </div>
           <div class="form-group">
             <label>Tags</label>
@@ -93,7 +98,7 @@
           </div>
           <div class="btn-row">
             <button type="submit" class="btn btn-primary" id="btn-save">Save Post</button>
-            <button type="button" class="btn btn-secondary" id="btn-cancel">Cancel</button>
+            <button type="button" class="btn btn-secondary" id="btn-done">Done</button>
             <span id="form-status" style="font-size:0.85rem;color:var(--muted)"></span>
           </div>
         </form>
@@ -189,6 +194,18 @@
     </div>
 
   </main>
+
+  <!-- ── Confirm dialog ── -->
+  <div id="confirm-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:300;display:none;align-items:center;justify-content:center">
+    <div style="background:var(--surface);border-radius:var(--radius);padding:2rem;max-width:420px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+      <h3 id="confirm-title" style="margin:0 0 0.6rem"></h3>
+      <p id="confirm-message" style="color:var(--muted);margin:0 0 1.75rem;font-size:0.95rem"></p>
+      <div style="display:flex;gap:0.75rem;justify-content:flex-end;flex-wrap:wrap">
+        <button class="btn btn-secondary" id="confirm-cancel"></button>
+        <button class="btn btn-primary"   id="confirm-ok"></button>
+      </div>
+    </div>
+  </div>
 
   <!-- ── Image picker modal ── -->
   <div id="image-picker-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;padding:2rem;overflow-y:auto">
@@ -315,15 +332,60 @@
     }
 
     // ── New post ───────────────────────────────────────────
+    function resetPreview() {
+      document.getElementById("input-content").style.display = "";
+      document.getElementById("content-preview").style.display = "none";
+      document.getElementById("btn-preview").textContent = "👁 Preview";
+    }
+
     document.getElementById("btn-new-post").addEventListener("click", () => {
       document.getElementById("form-title").textContent = "New Post";
       document.getElementById("post-form").reset();
       document.getElementById("post-id").value = "";
       renderTagCheckboxes([]);
+      resetPreview();
+      postDirty = false;
       showView("view-form");
     });
 
-    document.getElementById("btn-cancel").addEventListener("click", () => showView("view-posts"));
+    function showConfirm({ title, message, okText, cancelText }) {
+      return new Promise(resolve => {
+        const overlay = document.getElementById("confirm-overlay");
+        document.getElementById("confirm-title").textContent   = title;
+        document.getElementById("confirm-message").textContent = message;
+        document.getElementById("confirm-ok").textContent      = okText;
+        document.getElementById("confirm-cancel").textContent  = cancelText;
+        overlay.style.display = "flex";
+        const cleanup = (result) => {
+          overlay.style.display = "none";
+          document.getElementById("confirm-ok").removeEventListener("click", onOk);
+          document.getElementById("confirm-cancel").removeEventListener("click", onCancel);
+          resolve(result);
+        };
+        const onOk     = () => cleanup(true);
+        const onCancel = () => cleanup(false);
+        document.getElementById("confirm-ok").addEventListener("click", onOk);
+        document.getElementById("confirm-cancel").addEventListener("click", onCancel);
+      });
+    }
+
+    document.getElementById("btn-done").addEventListener("click", async () => {
+      if (postDirty) {
+        const save = await showConfirm({
+          title:      "Unsaved changes",
+          message:    "You have unsaved changes. Would you like to save before leaving?",
+          okText:     "Save",
+          cancelText: "Exit without saving",
+        });
+        if (save) {
+          const saved = await savePost();
+          if (!saved) return; // save failed, stay on form
+        }
+      }
+      postDirty = false;
+      showView("view-posts");
+      loadPosts();
+    });
 
     // ── Edit post ──────────────────────────────────────────
     async function editPost(id, slug) {
@@ -339,6 +401,8 @@
       document.getElementById("input-content").value = post.content;
       document.getElementById("input-published").checked = post.published;
       renderTagCheckboxes(post.tags.map(t => t.id));
+      resetPreview();
+      postDirty = false;
       showView("view-form");
     }
 
@@ -349,6 +413,29 @@
       showToast("Post deleted.");
       loadPosts();
     }
+
+    // ── Content preview ────────────────────────────────────
+    document.getElementById("btn-preview").addEventListener("click", () => {
+      const textarea = document.getElementById("input-content");
+      const preview  = document.getElementById("content-preview");
+      const btn      = document.getElementById("btn-preview");
+      const isEditing = textarea.style.display !== "none";
+
+      if (isEditing) {
+        preview.innerHTML = marked.parse(textarea.value || "*Nothing to preview yet.*");
+        preview.querySelectorAll("p").forEach(p => {
+          const nodes = [...p.childNodes].filter(n => !(n.nodeType === Node.TEXT_NODE && !n.textContent.trim()));
+          if (nodes.length > 1 && nodes.every(n => n.nodeName === "IMG")) p.classList.add("img-row");
+        });
+        textarea.style.display = "none";
+        preview.style.display  = "block";
+        btn.textContent = "✏️ Edit";
+      } else {
+        textarea.style.display = "";
+        preview.style.display  = "none";
+        btn.textContent = "👁 Preview";
+      }
+    });
 
     // ── Image picker ───────────────────────────────────────
     let pickerDebounce;
@@ -518,9 +605,16 @@
     });
 
     // ── Save post ──────────────────────────────────────────
-    document.getElementById("post-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const btn = document.getElementById("btn-save");
+    let postDirty = false;
+
+    // Mark form dirty on any change
+    ["input-title", "input-excerpt", "input-content", "input-published"].forEach(id => {
+      document.getElementById(id).addEventListener("input", () => { postDirty = true; });
+    });
+    document.getElementById("input-published").addEventListener("change", () => { postDirty = true; });
+
+    async function savePost() {
+      const btn    = document.getElementById("btn-save");
       const status = document.getElementById("form-status");
       btn.disabled = true;
       status.textContent = "Saving…";
@@ -534,23 +628,32 @@
         tags:      tagIds,
       };
 
-      const id = document.getElementById("post-id").value;
+      const id  = document.getElementById("post-id").value;
       const res = await fetch(id ? `${API}/posts/${id}` : `${API}/posts`, {
         method: id ? "PUT" : "POST",
         headers: authHeaders(),
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       });
 
       btn.disabled = false;
       if (res.ok) {
+        const saved = await res.json();
+        // If this was a new post, store the assigned id for subsequent saves
+        if (!id) document.getElementById("post-id").value = saved.id;
+        postDirty = false;
         showToast(id ? "Post updated!" : "Post created!");
         status.textContent = "";
-        showView("view-posts");
-        loadPosts();
+        return true;
       } else {
         const err = await res.json();
         status.textContent = "Error: " + (err.error || "unknown");
+        return false;
       }
+    }
+
+    document.getElementById("post-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      await savePost();
     });
 
     // ── Tag manager ────────────────────────────────────────
