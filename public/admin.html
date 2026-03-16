@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin — Brendan's Blog</title>
   <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
+  <script src="/lightbox.js"></script>
 </head>
 <body>
   <header>
@@ -229,7 +229,6 @@
   </div>
 
   <div class="toast" id="toast"></div>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.js"></script>
 
   <script>
     const API = "/api";
@@ -818,10 +817,7 @@
       renderImageGrid(images);
     }
 
-    let imageGridViewer = null;
-
     function renderImageGrid(images) {
-      if (imageGridViewer) { imageGridViewer.destroy(); imageGridViewer = null; }
       const grid = document.getElementById("image-grid");
       if (!images.length) {
         grid.innerHTML = '<div class="empty-state">No images yet. Upload one to get started.</div>';
@@ -829,8 +825,8 @@
       }
       grid.innerHTML = images.map(img => `
         <div class="image-card">
-          <div class="image-thumb-wrap" style="cursor:zoom-in">
-            <img class="image-thumb" src="${escHtml(img.thumbnailUrl)}" alt="${escHtml(img.filename)}" loading="lazy" data-original-src="/api/images/proxy/${encodeURIComponent(img.key).replace(/%2F/g,'/')}" />
+          <div class="image-thumb-wrap" style="cursor:zoom-in" onclick="openLightbox('/api/images/proxy/${encodeURIComponent(img.key).replace(/%2F/g,'/')}', '${escHtml(img.filename)}')">
+            <img class="image-thumb" src="${escHtml(img.thumbnailUrl)}" alt="${escHtml(img.filename)}" loading="lazy" />
           </div>
           <div class="image-card-info">
             <div class="image-name" title="${escHtml(img.filename)}">${escHtml(img.filename)}</div>
@@ -842,13 +838,6 @@
           </div>
         </div>
       `).join("");
-
-      imageGridViewer = new Viewer(grid, {
-        url:     "data-original-src",
-        navbar:  false,
-        title:   true,
-        toolbar: { zoomIn: 1, zoomOut: 1, reset: 1, rotateLeft: 0, rotateRight: 0, flipHorizontal: 0, flipVertical: 0 },
-      });
     }
 
     function formatBytes(b) {

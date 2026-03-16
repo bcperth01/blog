@@ -47,9 +47,7 @@
 
   <!-- marked.js for Markdown rendering (pinned to stable v4) -->
   <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
-  <!-- Viewer.js — image lightbox with pan & zoom -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.css" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.js"></script>
+  <script src="/lightbox.js"></script>
   <script>
     const API = "/api";
 
@@ -92,17 +90,12 @@
         if (nodes.length > 1 && nodes.every(n => n.nodeName === "IMG")) p.classList.add("img-row");
       });
 
-      // Set up image viewer — map any embedded image to its full-size proxy URL
+      // Wire up lightbox — click any image to open full-size in the lightbox
       postBody.querySelectorAll("img").forEach(img => {
-        const filename = img.src.split("/").pop().split("?")[0];
-        img.setAttribute("data-original-src", `/api/images/proxy/images/${filename}`);
+        const filename = decodeURIComponent(img.src.split("/").pop().split("?")[0]);
+        const fullSrc  = `/api/images/proxy/images/${encodeURIComponent(filename)}`;
         img.style.cursor = "zoom-in";
-      });
-      new Viewer(postBody, {
-        url:     "data-original-src",
-        navbar:  false,
-        title:   true,
-        toolbar: { zoomIn: 1, zoomOut: 1, reset: 1, rotateLeft: 0, rotateRight: 0, flipHorizontal: 0, flipVertical: 0 },
+        img.addEventListener("click", () => openLightbox(fullSrc, img.alt || filename));
       });
 
       document.getElementById("post-container").style.display = "block";
