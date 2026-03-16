@@ -52,7 +52,15 @@ jobs:
             sudo docker compose up -d --build
 
             # Ensure Nginx is installed, configured and running
-            sudo dnf install -y nginx
+            sudo dnf install -y nginx certbot python3-certbot-nginx
             sudo systemctl enable nginx
             sudo cp $HOME/app/nginx/blog.conf /etc/nginx/conf.d/blog.conf
             sudo nginx -t && sudo systemctl reload nginx || sudo systemctl start nginx
+
+            # Obtain or renew SSL certificate (skips if already valid)
+            sudo certbot --nginx \
+              --non-interactive \
+              --agree-tos \
+              --email ${{ secrets.ADMIN_EMAIL }} \
+              --domains blog.bcperth.com \
+              --redirect || true
