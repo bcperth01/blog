@@ -19,7 +19,7 @@ export class BlogStack extends cdk.Stack {
     const sg = new ec2.SecurityGroup(this, "BlogSG", {
       vpc,
       securityGroupName: "blog-sg",
-      description: "Blog server — allow SSH, HTTP, HTTPS",
+      description: "Blog server - allow SSH, HTTP, HTTPS",
       allowAllOutbound: true,
     });
 
@@ -43,6 +43,15 @@ export class BlogStack extends cdk.Stack {
       "mkdir -p /usr/local/lib/docker/cli-plugins",
       "curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose",
       "chmod +x /usr/local/lib/docker/cli-plugins/docker-compose",
+      // Docker Buildx plugin (required by compose build)
+      "mkdir -p /root/.docker/cli-plugins",
+      "curl -SL https://github.com/docker/buildx/releases/download/v0.19.3/buildx-v0.19.3.linux-amd64 -o /root/.docker/cli-plugins/docker-buildx",
+      "chmod +x /root/.docker/cli-plugins/docker-buildx",
+      // Also install for ec2-user
+      "mkdir -p /home/ec2-user/.docker/cli-plugins",
+      "curl -SL https://github.com/docker/buildx/releases/download/v0.19.3/buildx-v0.19.3.linux-amd64 -o /home/ec2-user/.docker/cli-plugins/docker-buildx",
+      "chmod +x /home/ec2-user/.docker/cli-plugins/docker-buildx",
+      "chown -R ec2-user:ec2-user /home/ec2-user/.docker",
     );
 
     // ── EC2 instance ─────────────────────────────────────────────
