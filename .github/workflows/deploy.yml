@@ -51,16 +51,22 @@ jobs:
             sudo docker compose pull db
             sudo docker compose up -d --build
 
-            # Ensure Nginx is installed, configured and running
+            # Ensure Nginx is installed and running
             sudo dnf install -y nginx certbot python3-certbot-nginx
             sudo systemctl enable nginx
-            sudo cp $HOME/app/nginx/blog.conf /etc/nginx/conf.d/blog.conf
-            sudo nginx -t && sudo systemctl reload nginx || sudo systemctl start nginx
 
-            # Obtain or renew SSL certificate (skips if already valid)
-            sudo certbot --nginx \
-              --non-interactive \
-              --agree-tos \
-              --email ${{ secrets.ADMIN_EMAIL }} \
-              --domains blog.bcperth.com \
-              --redirect || true
+            # Only copy base config if no cert exists yet (certbot manages it after first run)
+            if [ ! -f /etc/letsencrypt/live/blog.bcperth.com/fullchain.pem ]; then
+              sudo cp $HOME/app/nginx/blog.conf /etc/nginx/conf.d/blog.conf
+              sudo nginx -t && sudo systemctl reload nginx || sudo systemctl start nginx
+              # Obtain SSL certificate
+              sudo certbot --nginx \
+                --non-interactive \
+                --agree-tos \
+                --email ${{ secrets.ADMIN_EMAIL }} \
+                --domains blog.bcperth.com \
+                --redirect || true
+            else
+              # Cert exists — just reload nginx to pick up any app changes
+              sudo nginx -t && sudo systemctl reload nginx
+            fi
