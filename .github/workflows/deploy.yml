@@ -1,0 +1,47 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host:        ${{ secrets.EC2_HOST }}
+          username:    ${{ secrets.EC2_USER }}
+          key:         ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+
+            # Clone repo on first deploy, otherwise pull latest
+            if [ ! -d "/app" ]; then
+              git clone https://github.com/${{ github.repository }} /app
+            fi
+
+            cd /app
+            git pull origin main
+
+            # Write .env from GitHub secrets
+            cat > .env <<'ENVEOF'
+            AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            AWS_REGION=${{ secrets.AWS_REGION }}
+            AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
+            AWS_S3_IMAGES_PREFIX=${{ secrets.AWS_S3_IMAGES_PREFIX }}
+            AWS_S3_THUMBNAILS_PREFIX=${{ secrets.AWS_S3_THUMBNAILS_PREFIX }}
+            AWS_S3_CARDS_PREFIX=${{ secrets.AWS_S3_CARDS_PREFIX }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            ADMIN_USERNAME=${{ secrets.ADMIN_USERNAME }}
+            ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
+            ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}
+            PORT=3000
+            ENVEOF
+
+            # Rebuild and restart containers
+            docker compose pull db
+            docker compose up -d --build
