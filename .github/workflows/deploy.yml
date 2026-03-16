@@ -19,11 +19,11 @@ jobs:
             set -e
 
             # Clone repo on first deploy, otherwise pull latest
-            if [ ! -d "/app" ]; then
-              git clone https://github.com/${{ github.repository }} /app
+            if [ ! -d "$HOME/app" ]; then
+              git clone https://github.com/${{ github.repository }} $HOME/app
             fi
 
-            cd /app
+            cd $HOME/app
             git pull origin main
 
             # Write .env from GitHub secrets
