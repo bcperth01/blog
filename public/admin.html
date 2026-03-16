@@ -83,10 +83,10 @@
             <div class="post-body form-card" id="content-preview" style="display:none;min-height:280px;margin-top:0;border-top-left-radius:0;border-top-right-radius:0"></div>
           </div>
           <div class="form-group">
-            <label>Tags</label>
-            <div class="tag-checkboxes" id="tag-checkboxes"></div>
+            <span style="font-size:0.88rem;font-weight:600">Tags</span>
+            <div class="tag-checkboxes" id="tag-checkboxes" role="group" aria-label="Tags"></div>
             <div style="margin-top:0.5rem;display:flex;gap:0.5rem">
-              <input type="text" id="new-tag-input" placeholder="Add new tag…" style="flex:1;padding:0.4rem 0.6rem;border:1px solid var(--border);border-radius:var(--radius);font-size:0.88rem" />
+              <input type="text" id="new-tag-input" placeholder="Add new tag…" aria-label="Add new tag" style="flex:1;padding:0.4rem 0.6rem;border:1px solid var(--border);border-radius:var(--radius);font-size:0.88rem" />
               <button type="button" class="btn btn-secondary" id="btn-add-tag" style="padding:0.4rem 0.85rem">Add</button>
             </div>
           </div>
@@ -110,7 +110,7 @@
       <h2 class="page-title">Manage Tags</h2>
       <div class="form-card">
         <div style="display:flex;gap:0.5rem;margin-bottom:1rem">
-          <input type="text" id="new-tag-main" placeholder="New tag name…" style="flex:1;padding:0.5rem 0.75rem;border:1px solid var(--border);border-radius:var(--radius);font-size:0.95rem" />
+          <input type="text" id="new-tag-main" placeholder="New tag name…" aria-label="New tag name" style="flex:1;padding:0.5rem 0.75rem;border:1px solid var(--border);border-radius:var(--radius);font-size:0.95rem" />
           <button class="btn btn-primary" id="btn-create-tag">Create Tag</button>
         </div>
         <div id="tags-list"></div>
@@ -145,7 +145,7 @@
       <div class="upload-row" style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap">
         <label class="btn btn-primary" for="img-file-input" style="cursor:pointer">↑ Upload Images</label>
         <input type="file" id="img-file-input" accept="image/*" multiple style="display:none" />
-        <input type="text" id="img-search" placeholder="Search images…" style="flex:1;min-width:180px;padding:0.5rem 0.75rem;border:1px solid var(--border);border-radius:var(--radius);font-size:0.95rem;background:var(--bg);color:var(--text)" />
+        <input type="text" id="img-search" placeholder="Search images…" aria-label="Search images" style="flex:1;min-width:180px;padding:0.5rem 0.75rem;border:1px solid var(--border);border-radius:var(--radius);font-size:0.95rem;background:var(--bg);color:var(--text)" />
         <div id="upload-progress" style="display:none;flex:1;min-width:200px">
           <div style="font-size:0.85rem;color:var(--muted)" id="upload-status"></div>
           <div style="background:var(--border);border-radius:4px;height:5px;margin-top:5px">
@@ -212,7 +212,7 @@
     <div style="background:var(--surface);border-radius:var(--radius);max-width:900px;margin:0 auto;padding:1.5rem">
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem">
         <h3 style="margin:0;flex:1">Insert Image</h3>
-        <input type="text" id="picker-search" placeholder="Search images…" style="flex:2;padding:0.45rem 0.75rem;border:1px solid var(--border);border-radius:var(--radius);font-size:0.9rem;background:var(--bg);color:var(--text)" />
+        <input type="text" id="picker-search" placeholder="Search images…" aria-label="Search images" style="flex:2;padding:0.45rem 0.75rem;border:1px solid var(--border);border-radius:var(--radius);font-size:0.9rem;background:var(--bg);color:var(--text)" />
         <button class="btn btn-secondary" id="btn-picker-close" style="padding:0.3rem 0.75rem">✕ Close</button>
       </div>
       <div class="image-grid" id="picker-grid"></div>

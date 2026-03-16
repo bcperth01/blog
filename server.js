@@ -1,10 +1,12 @@
 require("dotenv").config();
 
-const express = require("express");
-const path    = require("path");
-const cors    = require("cors");
-const bcrypt  = require("bcryptjs");
-const db      = require("./db");
+const express   = require("express");
+const path      = require("path");
+const cors      = require("cors");
+const helmet    = require("helmet");
+const rateLimit = require("express-rate-limit");
+const bcrypt    = require("bcryptjs");
+const db        = require("./db");
 
 const postsRouter  = require("./routes/posts");
 const tagsRouter   = require("./routes/tags");
@@ -15,10 +17,35 @@ const imagesRouter = require("./routes/images");
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc:  ["'self'", "cdn.jsdelivr.net", "'unsafe-inline'"],
+      styleSrc:   ["'self'", "https:", "'unsafe-inline'"],
+      imgSrc:     ["'self'", "data:", "https:"],
+      fontSrc:    ["'self'", "https:", "data:"],
+      connectSrc: ["'self'"],
+      scriptSrcAttr: ["'unsafe-inline'"],
+      objectSrc:  ["'none'"],
+      frameAncestors: ["'self'"],
+      upgradeInsecureRequests: [],
+    },
+  },
+}));
+app.use(cors({ origin: process.env.CORS_ORIGIN || "https://blog.bcperth.com" }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,
+  message: { error: "Too many login attempts, please try again later" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use("/api/auth/login", loginLimiter);
 app.use("/api/auth",   authRouter);
 app.use("/api/users",  usersRouter);
 app.use("/api/posts",  postsRouter);
