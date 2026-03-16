@@ -46,8 +46,21 @@
   </main>
 
   <!-- marked.js for Markdown rendering (pinned to stable v4) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/atom-one-dark.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
   <script src="/lightbox.js"></script>
+  <script>
+    marked.use({
+      renderer: {
+        code(code, lang) {
+          const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
+          const highlighted = hljs.highlight(code, { language }).value;
+          return `<pre><code class="hljs language-${language}">${highlighted}</code></pre>`;
+        }
+      }
+    });
+  </script>
   <script>
     const API = "/api";
 
