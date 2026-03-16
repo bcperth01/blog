@@ -34,7 +34,9 @@ export class BlogStack extends cdk.Stack {
     const userData = ec2.UserData.forLinux();
     userData.addCommands(
       "dnf update -y",
-      "dnf install -y docker git",
+      "dnf install -y docker git nginx",
+      "systemctl enable nginx",
+      "systemctl start nginx",
       "systemctl enable docker",
       "systemctl start docker",
       // Allow ec2-user to run docker without sudo

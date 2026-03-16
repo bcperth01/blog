@@ -45,3 +45,7 @@ jobs:
             # Rebuild and restart containers
             docker compose pull db
             docker compose up -d --build
+
+            # Deploy Nginx config and reload
+            sudo cp $HOME/app/nginx/blog.conf /etc/nginx/conf.d/blog.conf
+            sudo nginx -t && sudo systemctl reload nginx
