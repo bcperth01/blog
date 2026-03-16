@@ -175,7 +175,7 @@ nav a:hover, nav a.active { color: var(--accent); text-decoration: none; }
 }
 
 /* ── Post card ────────────────────────────────────────────── */
-.post-list { display: flex; flex-direction: column; gap: 1.25rem; }
+.post-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.25rem; }
 
 .post-card {
   background: var(--surface);
@@ -192,6 +192,14 @@ nav a:hover, nav a.active { color: var(--accent); text-decoration: none; }
 .post-card .excerpt { font-size: 0.93rem; color: var(--text); margin-bottom: 0.75rem; }
 .post-card .card-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
 .post-card .draft-badge { font-size: 0.75rem; background: #fef3c7; color: #92400e; padding: 0.15rem 0.5rem; border-radius: 4px; }
+
+.card-image { margin: -1.25rem -1.5rem 1rem; border-radius: var(--radius) var(--radius) 0 0; overflow: hidden; height: 200px; background: var(--border); }
+.card-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.card-stats { display: flex; align-items: center; gap: 0.6rem; font-size: 0.82rem; color: var(--muted); }
+.like-btn { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 0.82rem; padding: 0; display: flex; align-items: center; gap: 0.2rem; transition: color 0.15s; line-height: 1; }
+.like-btn:hover { color: #e11d48; }
+.like-btn:disabled { color: #e11d48; cursor: default; }
 
 /* ── Pagination ───────────────────────────────────────────── */
 .pagination {

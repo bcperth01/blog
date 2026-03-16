@@ -100,12 +100,17 @@
       }
       list.innerHTML = posts.map(p => `
         <article class="post-card">
+          <div class="card-image">${p.card_image ? `<img src="${escHtml(p.card_image)}" alt="${escHtml(p.title)}" loading="lazy" />` : ""}</div>
           <h2><a href="/post.html?slug=${p.slug}">${escHtml(p.title)}</a></h2>
           <div class="meta">${formatDate(p.created_at)}</div>
           ${p.excerpt ? `<p class="excerpt">${escHtml(p.excerpt)}</p>` : ""}
           <div class="card-footer">
             <div class="tag-list">
               ${p.tags.map(t => `<span class="tag" onclick="selectTag('${t.slug}')">${escHtml(t.name)}</span>`).join("")}
+            </div>
+            <div class="card-stats">
+              <button class="like-btn" onclick="likePost(${p.id}, this)" title="Like this post">♥ <span>${p.likes}</span></button>
+              <span title="Views">👁 ${p.hits}</span>
             </div>
             <a class="btn btn-secondary" href="/post.html?slug=${p.slug}" style="padding:0.3rem 0.8rem;font-size:0.82rem">Read →</a>
           </div>
@@ -128,6 +133,15 @@
     }
 
     function goPage(p) { state.page = p; loadPosts(); window.scrollTo(0, 0); }
+
+    async function likePost(id, btn) {
+      const res = await fetch(`${API}/posts/${id}/like`, { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        btn.querySelector("span").textContent = data.likes;
+        btn.disabled = true;
+      }
+    }
 
     function doSearch() {
       state.search = document.getElementById("search-input").value.trim();

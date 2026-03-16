@@ -50,7 +50,7 @@
       <div class="form-card" style="padding:0;overflow:hidden">
         <table class="admin-table">
           <thead>
-            <tr><th>Title</th><th>Status</th><th>Created</th><th>Tags</th><th>Actions</th></tr>
+            <tr><th>Title</th><th>Status</th><th>Approved</th><th>Created</th><th>Tags</th><th>Actions</th></tr>
           </thead>
           <tbody id="posts-tbody"></tbody>
         </table>
@@ -88,6 +88,17 @@
             <div style="margin-top:0.5rem;display:flex;gap:0.5rem">
               <input type="text" id="new-tag-input" placeholder="Add new tag…" aria-label="Add new tag" style="flex:1;padding:0.4rem 0.6rem;border:1px solid var(--border);border-radius:var(--radius);font-size:0.88rem" />
               <button type="button" class="btn btn-secondary" id="btn-add-tag" style="padding:0.4rem 0.85rem">Add</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Card Image <span style="font-weight:400;color:var(--muted)">(optional — shown on post list)</span></label>
+            <input type="hidden" id="input-card-image" />
+            <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-top:0.35rem">
+              <div id="card-image-preview" style="display:none">
+                <img id="card-image-thumb" src="" alt="" style="height:56px;border-radius:4px;border:1px solid var(--border);object-fit:cover" />
+              </div>
+              <button type="button" class="btn btn-secondary" id="btn-select-card-image" style="padding:0.25rem 0.7rem;font-size:0.82rem">📷 Select Image</button>
+              <button type="button" class="btn btn-secondary" id="btn-clear-card-image" style="padding:0.25rem 0.7rem;font-size:0.82rem;display:none">✕ Clear</button>
             </div>
           </div>
           <div class="form-group">
@@ -316,12 +327,17 @@
             <span class="status-dot ${p.published ? "pub" : "draft"}"></span>
             ${p.published ? "Published" : "Draft"}
           </td>
+          <td>
+            <span class="status-dot ${p.approved ? "pub" : "draft"}"></span>
+            ${p.approved ? "Approved" : "Pending"}
+          </td>
           <td>${formatDate(p.created_at)}</td>
           <td>${p.tags.map(t => `<span class="tag" style="cursor:default">${escHtml(t.name)}</span>`).join(" ")}</td>
           <td>
             <div class="actions">
               <button class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem" onclick="editPost(${p.id}, '${p.slug}')">Edit</button>
               ${currentUser.role === "admin" || p.author_id === currentUser.id ? `<button class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem" onclick="togglePublish(${p.id}, ${p.published})">${p.published ? "Unpublish" : "Publish"}</button>` : ""}
+              ${currentUser.role === "admin" ? `<button class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem" onclick="toggleApprove(${p.id}, ${p.approved})">${p.approved ? "Unapprove" : "Approve"}</button>` : ""}
               <button class="btn btn-danger"    style="padding:0.3rem 0.7rem;font-size:0.82rem" onclick="deletePost(${p.id}, '${escHtml(p.title)}')">Delete</button>
               <a class="btn btn-secondary" href="/post.html?slug=${p.slug}" style="padding:0.3rem 0.7rem;font-size:0.82rem">View</a>
             </div>
@@ -341,6 +357,9 @@
       document.getElementById("form-title").textContent = "New Post";
       document.getElementById("post-form").reset();
       document.getElementById("post-id").value = "";
+      document.getElementById("input-card-image").value = "";
+      document.getElementById("card-image-preview").style.display = "none";
+      document.getElementById("btn-clear-card-image").style.display = "none";
       renderTagCheckboxes([]);
       resetPreview();
       postDirty = false;
@@ -399,6 +418,17 @@
       document.getElementById("input-excerpt").value = post.excerpt || "";
       document.getElementById("input-content").value = post.content;
       document.getElementById("input-published").checked = post.published;
+      const cardUrl = post.card_image || "";
+      document.getElementById("input-card-image").value = cardUrl;
+      if (cardUrl) {
+        const thumbUrl = cardUrl.replace("/api/images/proxy/cards/", "/api/images/proxy/thumbnails/");
+        document.getElementById("card-image-thumb").src = thumbUrl;
+        document.getElementById("card-image-preview").style.display = "";
+        document.getElementById("btn-clear-card-image").style.display = "";
+      } else {
+        document.getElementById("card-image-preview").style.display = "none";
+        document.getElementById("btn-clear-card-image").style.display = "none";
+      }
       renderTagCheckboxes(post.tags.map(t => t.id));
       resetPreview();
       postDirty = false;
@@ -438,12 +468,31 @@
 
     // ── Image picker ───────────────────────────────────────
     let pickerDebounce;
+    let pickerMode = "insert"; // "insert" | "card"
 
     document.getElementById("btn-insert-image").addEventListener("click", async () => {
+      pickerMode = "insert";
+      document.querySelector("#image-picker-overlay h3").textContent = "Insert Image";
       document.getElementById("picker-search").value = "";
       document.getElementById("image-picker-overlay").style.display = "block";
       document.body.style.overflow = "hidden";
       await loadPickerImages();
+    });
+
+    document.getElementById("btn-select-card-image").addEventListener("click", async () => {
+      pickerMode = "card";
+      document.querySelector("#image-picker-overlay h3").textContent = "Select Card Image";
+      document.getElementById("picker-search").value = "";
+      document.getElementById("image-picker-overlay").style.display = "block";
+      document.body.style.overflow = "hidden";
+      await loadPickerImages();
+    });
+
+    document.getElementById("btn-clear-card-image").addEventListener("click", () => {
+      document.getElementById("input-card-image").value = "";
+      document.getElementById("card-image-preview").style.display = "none";
+      document.getElementById("btn-clear-card-image").style.display = "none";
+      postDirty = true;
     });
 
     document.getElementById("btn-picker-close").addEventListener("click", closeImagePicker);
@@ -471,7 +520,7 @@
       const images = await res.json();
       if (!images.length) { grid.innerHTML = '<div class="empty-state">No images found.</div>'; return; }
       grid.innerHTML = images.map(img => `
-        <div class="image-card" style="cursor:pointer" onclick="insertImage('${escHtml(img.thumbProxyUrl)}', '${escHtml(img.filename)}')">
+        <div class="image-card" style="cursor:pointer" onclick="pickerSelect('${escHtml(img.thumbProxyUrl)}', '${escHtml(img.filename)}')">
           <div class="image-thumb-wrap">
             <img class="image-thumb" src="${escHtml(img.thumbnailUrl)}" alt="${escHtml(img.filename)}" loading="lazy" />
           </div>
@@ -480,6 +529,26 @@
           </div>
         </div>
       `).join("");
+    }
+
+    function pickerSelect(thumbProxyUrl, filename) {
+      if (pickerMode === "card") {
+        setCardImage(thumbProxyUrl, filename);
+      } else {
+        insertImage(thumbProxyUrl, filename);
+      }
+    }
+
+    function setCardImage(thumbProxyUrl, filename) {
+      closeImagePicker();
+      // Store card-sized URL; derive by swapping thumbnails/ → cards/
+      const cardUrl = thumbProxyUrl.replace("/api/images/proxy/thumbnails/", "/api/images/proxy/cards/");
+      document.getElementById("input-card-image").value = cardUrl;
+      document.getElementById("card-image-thumb").src = thumbProxyUrl;
+      document.getElementById("card-image-preview").style.display = "";
+      document.getElementById("btn-clear-card-image").style.display = "";
+      postDirty = true;
+      showToast("Card image selected.");
     }
 
     function insertImage(proxyUrl, filename) {
@@ -546,6 +615,22 @@
       textarea.setRangeText(resolved, start, end, "end");
     });
 
+    // ── Toggle approve (admin only) ────────────────────────
+    async function toggleApprove(id, currentlyApproved) {
+      const res = await fetch(`${API}/posts/${id}`, {
+        method: "PUT",
+        headers: authHeaders(),
+        body: JSON.stringify({ approved: !currentlyApproved }),
+      });
+      if (res.ok) {
+        showToast(currentlyApproved ? "Post unapproved." : "Post approved.");
+        loadPosts();
+      } else {
+        const err = await res.json();
+        showToast("Error: " + (err.error || "unknown"));
+      }
+    }
+
     // ── Toggle publish ─────────────────────────────────────
     async function togglePublish(id, currentlyPublished) {
       const res = await fetch(`${API}/posts/${id}`, {
@@ -611,11 +696,12 @@
 
       const tagIds = [...document.querySelectorAll("#tag-checkboxes input:checked")].map(i => parseInt(i.value));
       const body = {
-        title:     document.getElementById("input-title").value.trim(),
-        excerpt:   document.getElementById("input-excerpt").value.trim(),
-        content:   document.getElementById("input-content").value,
-        published: document.getElementById("input-published").checked,
-        tags:      tagIds,
+        title:      document.getElementById("input-title").value.trim(),
+        excerpt:    document.getElementById("input-excerpt").value.trim(),
+        content:    document.getElementById("input-content").value,
+        published:  document.getElementById("input-published").checked,
+        card_image: document.getElementById("input-card-image").value || null,
+        tags:       tagIds,
       };
 
       const id  = document.getElementById("post-id").value;

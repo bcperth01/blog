@@ -46,6 +46,10 @@ router.get("/", optionalAuth, async (req, res) => {
       params.push(tag);
       conditions.push(`EXISTS (SELECT 1 FROM post_tags pt JOIN tags t ON t.id = pt.tag_id WHERE pt.post_id = p.id AND t.slug = $${params.length})`);
     }
+    // Non-admin users only see approved posts
+    if (req.user?.role !== "admin") {
+      conditions.push(`p.approved = true`);
+    }
     // Contributors only see their own posts
     if (req.user?.role === "contributor") {
       params.push(req.user.id);
@@ -62,7 +66,7 @@ router.get("/", optionalAuth, async (req, res) => {
       ? `ts_rank(p.search_vector, websearch_to_tsquery('english', $${searchParamIdx})) DESC, p.created_at DESC`
       : `p.created_at DESC`;
     const { rows } = await db.query(
-      `SELECT p.id, p.title, p.slug, p.excerpt, p.published, p.created_at, p.updated_at, p.author_id
+      `SELECT p.id, p.title, p.slug, p.excerpt, p.published, p.approved, p.likes, p.hits, p.card_image, p.created_at, p.updated_at, p.author_id
        FROM posts p ${where}
        ORDER BY ${orderBy}
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
@@ -82,12 +86,16 @@ router.get("/:slug", optionalAuth, async (req, res) => {
     const { rows } = await db.query("SELECT * FROM posts WHERE slug = $1", [req.params.slug]);
     if (!rows.length) return res.status(404).json({ error: "Post not found" });
     const post = rows[0];
-    // Non-authenticated users can only read published posts
-    if (!post.published && !req.user)
+    // Non-authenticated users can only read published, approved posts
+    if ((!post.published || !post.approved) && !req.user)
       return res.status(404).json({ error: "Post not found" });
-    // Contributors can only read their own drafts
-    if (!post.published && req.user?.role === "contributor" && post.author_id !== req.user.id)
-      return res.status(404).json({ error: "Post not found" });
+    // Contributors can only read their own drafts; unapproved posts are admin-only
+    if (req.user?.role === "contributor") {
+      if (!post.published && post.author_id !== req.user.id)
+        return res.status(404).json({ error: "Post not found" });
+      if (!post.approved)
+        return res.status(404).json({ error: "Post not found" });
+    }
     const [result] = await withTags([post]);
     res.json(result);
   } catch (err) {
@@ -97,7 +105,7 @@ router.get("/:slug", optionalAuth, async (req, res) => {
 
 // POST /api/posts — admin or contributor
 router.post("/", verifyToken, requireRole("admin", "contributor"), async (req, res) => {
-  const { title, content, excerpt = "", published = false, tags = [] } = req.body;
+  const { title, content, excerpt = "", published = false, card_image = null, tags = [] } = req.body;
   if (!title || !content) return res.status(400).json({ error: "title and content are required" });
 
   const client = await db.connect();
@@ -105,8 +113,8 @@ router.post("/", verifyToken, requireRole("admin", "contributor"), async (req, r
     await client.query("BEGIN");
     const slug = toSlug(title) + "-" + Date.now();
     const { rows } = await client.query(
-      "INSERT INTO posts (title, slug, content, excerpt, published, author_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *",
-      [title, slug, content, excerpt, published, req.user.id]
+      "INSERT INTO posts (title, slug, content, excerpt, published, card_image, author_id) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *",
+      [title, slug, content, excerpt, published, card_image, req.user.id]
     );
     const post = rows[0];
 
@@ -140,17 +148,29 @@ router.put("/:id", verifyToken, requireRole("admin", "contributor"), async (req,
   }
 
   const { title, content, excerpt, published, tags } = req.body;
+  const approved   = req.user.role === "admin" ? req.body.approved : undefined;
   const client = await db.connect();
   try {
     await client.query("BEGIN");
+
+    // Build SET clause dynamically so card_image can be explicitly cleared (set to null)
+    const sets   = [
+      `title     = COALESCE($1, title)`,
+      `content   = COALESCE($2, content)`,
+      `excerpt   = COALESCE($3, excerpt)`,
+      `published = COALESCE($4, published)`,
+      `approved  = COALESCE($5, approved)`,
+    ];
+    const params = [title, content, excerpt, published, approved];
+    if ("card_image" in req.body) {
+      params.push(req.body.card_image || null);
+      sets.push(`card_image = $${params.length}`);
+    }
+    params.push(req.params.id);
+
     const { rows } = await client.query(
-      `UPDATE posts SET
-        title     = COALESCE($1, title),
-        content   = COALESCE($2, content),
-        excerpt   = COALESCE($3, excerpt),
-        published = COALESCE($4, published)
-       WHERE id = $5 RETURNING *`,
-      [title, content, excerpt, published, req.params.id]
+      `UPDATE posts SET ${sets.join(", ")} WHERE id = $${params.length} RETURNING *`,
+      params
     );
     if (!rows.length) { await client.query("ROLLBACK"); return res.status(404).json({ error: "Post not found" }); }
     const post = rows[0];
@@ -186,6 +206,34 @@ router.delete("/:id", verifyToken, requireRole("admin", "contributor"), async (r
   try {
     await db.query("DELETE FROM posts WHERE id = $1", [req.params.id]);
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/posts/:id/like — public, increments like count
+router.post("/:id/like", async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      "UPDATE posts SET likes = likes + 1 WHERE id = $1 RETURNING likes",
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: "Post not found" });
+    res.json({ likes: rows[0].likes });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/posts/:id/hit — public, increments view count
+router.post("/:id/hit", async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      "UPDATE posts SET hits = hits + 1 WHERE id = $1 RETURNING hits",
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: "Post not found" });
+    res.json({ hits: rows[0].hits });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

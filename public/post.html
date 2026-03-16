@@ -99,6 +99,9 @@
       });
 
       document.getElementById("post-container").style.display = "block";
+
+      // Increment hit counter (fire-and-forget)
+      fetch(`${API}/posts/${post.id}/hit`, { method: "POST" });
     }
 
     function showNotFound() {

@@ -51,6 +51,11 @@ jobs:
             sudo docker compose pull db
             sudo docker compose up -d --build
 
+            # Run DB migrations (idempotent — safe to re-run on every deploy)
+            for f in $HOME/app/migrations/*.sql; do
+              [ -f "$f" ] && sudo docker compose exec -T db psql -U bloguser -d blogdb < "$f" || true
+            done
+
             # Ensure Nginx is installed and running
             sudo dnf install -y nginx certbot python3-certbot-nginx
             sudo systemctl enable nginx

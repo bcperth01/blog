@@ -18,6 +18,10 @@ CREATE TABLE IF NOT EXISTS posts (
   published     BOOLEAN DEFAULT false,
   author_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
   search_vector tsvector,
+  approved      BOOLEAN     DEFAULT true,
+  likes         INT         DEFAULT 0,
+  hits          INT         DEFAULT 0,
+  card_image    TEXT,
   created_at    TIMESTAMPTZ DEFAULT NOW(),
   updated_at    TIMESTAMPTZ DEFAULT NOW()
 );
