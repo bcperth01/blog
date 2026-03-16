@@ -20,11 +20,11 @@ jobs:
 
             # Clone repo on first deploy, otherwise pull latest
             if [ ! -d "$HOME/app" ]; then
-              git clone https://github.com/${{ github.repository }} $HOME/app
+              git clone https://${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }} $HOME/app
             fi
 
             cd $HOME/app
-            git pull origin main
+            git pull https://${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }} main
 
             # Write .env from GitHub secrets
             cat > .env <<'ENVEOF'
@@ -43,8 +43,8 @@ jobs:
             ENVEOF
 
             # Rebuild and restart containers
-            docker compose pull db
-            docker compose up -d --build
+            sudo docker compose pull db
+            sudo docker compose up -d --build
 
             # Ensure Nginx is installed, configured and running
             sudo dnf install -y nginx
