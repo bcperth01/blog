@@ -245,6 +245,7 @@ nav a:hover, nav a.active { color: var(--accent); text-decoration: none; }
 .form-group label { font-size: 0.88rem; font-weight: 600; }
 
 .form-group input[type="text"],
+.form-group input[type="password"],
 .form-group textarea,
 .form-group select {
   padding: 0.5rem 0.75rem;
