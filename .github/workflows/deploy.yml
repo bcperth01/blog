@@ -46,6 +46,8 @@ jobs:
             docker compose pull db
             docker compose up -d --build
 
-            # Deploy Nginx config and reload
+            # Ensure Nginx is installed, configured and running
+            sudo dnf install -y nginx
+            sudo systemctl enable nginx
             sudo cp $HOME/app/nginx/blog.conf /etc/nginx/conf.d/blog.conf
-            sudo nginx -t && sudo systemctl reload nginx
+            sudo nginx -t && sudo systemctl reload nginx || sudo systemctl start nginx
