@@ -59,16 +59,7 @@ jobs:
             # Install and configure fail2ban (idempotent)
             if ! systemctl is-active --quiet fail2ban; then
               sudo dnf install -y fail2ban
-              sudo tee /etc/fail2ban/jail.local > /dev/null <<'JAIL'
-[DEFAULT]
-bantime  = 1h
-findtime = 10m
-maxretry = 5
-backend  = systemd
-
-[sshd]
-enabled = true
-JAIL
+              printf '[DEFAULT]\nbantime  = 1h\nfindtime = 10m\nmaxretry = 5\nbackend  = systemd\n\n[sshd]\nenabled = true\n' | sudo tee /etc/fail2ban/jail.local > /dev/null
               sudo systemctl enable fail2ban
               sudo systemctl start fail2ban
             fi
