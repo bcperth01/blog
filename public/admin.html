@@ -455,7 +455,14 @@
       const dropdown = btn.nextElementSibling;
       const isOpen = dropdown.classList.contains("open");
       closeRowMenus();
-      if (!isOpen) dropdown.classList.add("open");
+      if (!isOpen) {
+        const rect = btn.getBoundingClientRect();
+        dropdown.style.top  = (rect.bottom + 4) + "px";
+        dropdown.style.left = (rect.right - dropdown.offsetWidth || rect.right - 140) + "px";
+        dropdown.classList.add("open");
+        // Recalculate left now that it's visible and has a known width
+        dropdown.style.left = (rect.right - dropdown.offsetWidth) + "px";
+      }
     }
     document.addEventListener("click", e => {
       if (!e.target.closest(".row-menu")) closeRowMenus();
