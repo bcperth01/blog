@@ -2,6 +2,7 @@ const express = require("express");
 const router  = express.Router();
 const db      = require("../db");
 const { verifyToken, optionalAuth, requireRole } = require("../middleware/auth");
+const serverError = require("../lib/errors");
 
 function toSlug(str) {
   return str.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
@@ -76,7 +77,7 @@ router.get("/", optionalAuth, async (req, res) => {
     const posts = await withTags(rows);
     res.json({ total, page: parseInt(page), limit: parseInt(limit), posts });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return serverError(res, err);
   }
 });
 
@@ -99,7 +100,7 @@ router.get("/:slug", optionalAuth, async (req, res) => {
     const [result] = await withTags([post]);
     res.json(result);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return serverError(res, err);
   }
 });
 
@@ -107,6 +108,9 @@ router.get("/:slug", optionalAuth, async (req, res) => {
 router.post("/", verifyToken, requireRole("admin", "contributor"), async (req, res) => {
   const { title, content, excerpt = "", published = false, card_image = null, tags = [] } = req.body;
   if (!title || !content) return res.status(400).json({ error: "title and content are required" });
+  if (title.length > 200) return res.status(400).json({ error: "Title must be 200 characters or fewer" });
+  if (excerpt.length > 500) return res.status(400).json({ error: "Excerpt must be 500 characters or fewer" });
+  if (content.length > 200000) return res.status(400).json({ error: "Content must be 200,000 characters or fewer" });
 
   const client = await db.connect();
   try {
@@ -132,7 +136,7 @@ router.post("/", verifyToken, requireRole("admin", "contributor"), async (req, r
     res.status(201).json(result);
   } catch (err) {
     await client.query("ROLLBACK");
-    res.status(500).json({ error: err.message });
+    return serverError(res, err);
   } finally {
     client.release();
   }
@@ -148,6 +152,9 @@ router.put("/:id", verifyToken, requireRole("admin", "contributor"), async (req,
   }
 
   const { title, content, excerpt, published, tags } = req.body;
+  if (title !== undefined && title.length > 200) return res.status(400).json({ error: "Title must be 200 characters or fewer" });
+  if (excerpt !== undefined && excerpt.length > 500) return res.status(400).json({ error: "Excerpt must be 500 characters or fewer" });
+  if (content !== undefined && content.length > 200000) return res.status(400).json({ error: "Content must be 200,000 characters or fewer" });
   const approved   = req.user.role === "admin" ? req.body.approved : undefined;
   const client = await db.connect();
   try {
@@ -190,7 +197,7 @@ router.put("/:id", verifyToken, requireRole("admin", "contributor"), async (req,
     res.json(result);
   } catch (err) {
     await client.query("ROLLBACK");
-    res.status(500).json({ error: err.message });
+    return serverError(res, err);
   } finally {
     client.release();
   }
@@ -207,7 +214,7 @@ router.delete("/:id", verifyToken, requireRole("admin", "contributor"), async (r
     await db.query("DELETE FROM posts WHERE id = $1", [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return serverError(res, err);
   }
 });
 
@@ -221,7 +228,7 @@ router.post("/:id/like", async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: "Post not found" });
     res.json({ likes: rows[0].likes });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return serverError(res, err);
   }
 });
 
@@ -235,7 +242,7 @@ router.post("/:id/hit", async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: "Post not found" });
     res.json({ hits: rows[0].hits });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return serverError(res, err);
   }
 });
 

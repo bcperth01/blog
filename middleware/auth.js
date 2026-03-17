@@ -38,8 +38,16 @@ function signToken(user) {
   return jwt.sign(
     { id: user.id, username: user.username, role: user.role },
     SECRET,
-    { expiresIn: "7d" }
+    { expiresIn: "2h" }
   );
 }
 
-module.exports = { verifyToken, optionalAuth, requireRole, signToken };
+function signRefreshToken(user) {
+  return jwt.sign(
+    { id: user.id, type: "refresh" },
+    SECRET,
+    { expiresIn: "30d" }
+  );
+}
+
+module.exports = { verifyToken, optionalAuth, requireRole, signToken, signRefreshToken };

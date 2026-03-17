@@ -2,6 +2,7 @@ const express = require("express");
 const router  = express.Router();
 const db      = require("../db");
 const { verifyToken, requireRole } = require("../middleware/auth");
+const serverError = require("../lib/errors");
 
 function toSlug(str) {
   return str.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
@@ -15,7 +16,7 @@ router.get("/", async (req, res) => {
     );
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return serverError(res, err);
   }
 });
 
@@ -23,6 +24,7 @@ router.get("/", async (req, res) => {
 router.post("/", verifyToken, requireRole("admin", "contributor"), async (req, res) => {
   const { name } = req.body;
   if (!name) return res.status(400).json({ error: "name is required" });
+  if (name.length > 50) return res.status(400).json({ error: "Tag name must be 50 characters or fewer" });
   try {
     const slug = toSlug(name);
     const { rows } = await db.query(
@@ -31,7 +33,7 @@ router.post("/", verifyToken, requireRole("admin", "contributor"), async (req, r
     );
     res.status(201).json(rows[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return serverError(res, err);
   }
 });
 
@@ -41,7 +43,7 @@ router.delete("/:id", verifyToken, requireRole("admin"), async (req, res) => {
     await db.query("DELETE FROM tags WHERE id = $1", [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return serverError(res, err);
   }
 });
 

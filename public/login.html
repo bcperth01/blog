@@ -72,6 +72,7 @@
       if (res.ok) {
         const data = await res.json();
         localStorage.setItem("authToken", data.token);
+        if (data.refreshToken) localStorage.setItem("refreshToken", data.refreshToken);
         localStorage.setItem("authUser", JSON.stringify(data.user));
         window.location.href = "/admin.html";
       } else {

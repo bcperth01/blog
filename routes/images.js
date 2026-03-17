@@ -14,6 +14,7 @@ const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 const { s3, BUCKET } = require("../lib/s3");
 const { verifyToken, requireRole } = require("../middleware/auth");
+const serverError = require("../lib/errors");
 
 const SIGNED_URL_TTL = 3600; // 1 hour (for admin thumbnail display)
 const THUMB_SIZE     = 300;
@@ -92,7 +93,7 @@ router.get("/", verifyToken, requireRole("admin", "contributor"), async (req, re
     images.sort((a, b) => new Date(b.lastModified) - new Date(a.lastModified));
     res.json(images);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return serverError(res, err);
   }
 });
 
@@ -104,7 +105,7 @@ router.get("/presign", verifyToken, requireRole("admin", "contributor"), async (
     const url = await signedUrl(key);
     res.json({ url });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return serverError(res, err);
   }
 });
 
@@ -177,7 +178,7 @@ router.post("/", verifyToken, requireRole("admin", "contributor"), upload.single
       proxyUrl:     `/api/images/proxy/${origKey}`,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return serverError(res, err);
   }
 });
 
@@ -198,7 +199,7 @@ router.delete("/*", verifyToken, requireRole("admin"), async (req, res) => {
     ]);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return serverError(res, err);
   }
 });
 

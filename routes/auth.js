@@ -1,8 +1,12 @@
 const express = require("express");
 const router  = express.Router();
 const bcrypt  = require("bcryptjs");
+const jwt     = require("jsonwebtoken");
 const db      = require("../db");
-const { verifyToken, signToken } = require("../middleware/auth");
+const { verifyToken, signToken, signRefreshToken } = require("../middleware/auth");
+const serverError = require("../lib/errors");
+
+const SECRET = process.env.JWT_SECRET || "blog-dev-secret-change-in-production";
 
 // POST /api/auth/login
 router.post("/login", async (req, res) => {
@@ -17,9 +21,26 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials" });
 
     const token = signToken(user);
-    res.json({ token, user: { id: user.id, username: user.username, email: user.email, role: user.role } });
+    const refreshToken = signRefreshToken(user);
+    res.json({ token, refreshToken, user: { id: user.id, username: user.username, email: user.email, role: user.role } });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return serverError(res, err);
+  }
+});
+
+// POST /api/auth/refresh
+router.post("/refresh", async (req, res) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) return res.status(401).json({ error: "Refresh token required" });
+  try {
+    const payload = jwt.verify(refreshToken, SECRET);
+    if (payload.type !== "refresh") return res.status(401).json({ error: "Invalid token type" });
+    const { rows } = await db.query("SELECT * FROM users WHERE id = $1", [payload.id]);
+    const user = rows[0];
+    if (!user) return res.status(401).json({ error: "User not found" });
+    res.json({ token: signToken(user) });
+  } catch (err) {
+    res.status(401).json({ error: "Invalid or expired refresh token" });
   }
 });
 
@@ -33,7 +54,7 @@ router.get("/me", verifyToken, async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: "User not found" });
     res.json(rows[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return serverError(res, err);
   }
 });
 

@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/atom-one-dark.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
   <script>
     marked.use({
       renderer: {
@@ -78,11 +79,11 @@
           <input type="hidden" id="post-id" />
           <div class="form-group">
             <label for="input-title">Title *</label>
-            <input type="text" id="input-title" placeholder="Post title" required />
+            <input type="text" id="input-title" placeholder="Post title" required maxlength="200" />
           </div>
           <div class="form-group">
             <label for="input-excerpt">Excerpt <span style="font-weight:400;color:var(--muted)">(optional short summary)</span></label>
-            <input type="text" id="input-excerpt" placeholder="Brief description shown on the post list" />
+            <input type="text" id="input-excerpt" placeholder="Brief description shown on the post list" maxlength="500" />
           </div>
           <div class="form-group">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.35rem;flex-wrap:wrap;gap:0.4rem">
@@ -136,7 +137,7 @@
       <h2 class="page-title">Manage Tags</h2>
       <div class="form-card">
         <div style="display:flex;gap:0.5rem;margin-bottom:1rem">
-          <input type="text" id="new-tag-main" placeholder="New tag name…" aria-label="New tag name" style="flex:1;padding:0.5rem 0.75rem;border:1px solid var(--border);border-radius:var(--radius);font-size:0.95rem" />
+          <input type="text" id="new-tag-main" placeholder="New tag name…" aria-label="New tag name" style="flex:1;padding:0.5rem 0.75rem;border:1px solid var(--border);border-radius:var(--radius);font-size:0.95rem" maxlength="50" />
           <button class="btn btn-primary" id="btn-create-tag">Create Tag</button>
         </div>
         <div id="tags-list"></div>
@@ -191,11 +192,11 @@
           <input type="hidden" id="user-id" />
           <div class="form-group">
             <label for="user-username">Username *</label>
-            <input type="text" id="user-username" required />
+            <input type="text" id="user-username" required maxlength="50" />
           </div>
           <div class="form-group">
             <label for="user-email">Email *</label>
-            <input type="email" id="user-email" required />
+            <input type="email" id="user-email" required maxlength="255" />
           </div>
           <div class="form-group">
             <label for="user-password">Password <span id="pw-hint" style="font-weight:400;color:var(--muted)">*</span></label>
@@ -260,6 +261,32 @@
     let currentUser = null;
 
     // ── Auth ───────────────────────────────────────────────
+    async function apiFetch(url, options = {}) {
+      const headers = { ...(options.headers || {}), "Authorization": "Bearer " + (localStorage.getItem("authToken") || "") };
+      if (headers["Content-Type"] === undefined && !(options.body instanceof FormData)) {
+        // leave Content-Type as-is; only remove it for FormData
+      }
+      if (options.body instanceof FormData) {
+        delete headers["Content-Type"];
+      }
+      let res = await fetch(url, { ...options, headers });
+      if (res.status === 401) {
+        const refreshToken = localStorage.getItem("refreshToken");
+        if (!refreshToken) { logout(); return res; }
+        const refreshRes = await fetch(`${API}/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken }),
+        });
+        if (!refreshRes.ok) { logout(); return res; }
+        const refreshData = await refreshRes.json();
+        localStorage.setItem("authToken", refreshData.token);
+        headers["Authorization"] = "Bearer " + refreshData.token;
+        res = await fetch(url, { ...options, headers });
+      }
+      return res;
+    }
+
     function authHeaders() {
       return {
         "Content-Type": "application/json",
@@ -270,9 +297,7 @@
     async function checkAuth() {
       const token = localStorage.getItem("authToken");
       if (!token) { window.location.href = "/login.html"; return false; }
-      const res = await fetch(`${API}/auth/me`, {
-        headers: { "Authorization": "Bearer " + token }
-      });
+      const res = await apiFetch(`${API}/auth/me`);
       if (!res.ok) { logout(); return false; }
       currentUser = await res.json();
       document.getElementById("nav-username").textContent = currentUser.username;
@@ -285,6 +310,7 @@
     function logout() {
       localStorage.removeItem("authToken");
       localStorage.removeItem("authUser");
+      localStorage.removeItem("refreshToken");
       window.location.href = "/login.html";
     }
 
@@ -320,7 +346,7 @@
     // ── Load posts ─────────────────────────────────────────
     async function loadPosts() {
       document.getElementById("loading").style.display = "block";
-      const res = await fetch(`${API}/posts?limit=100`, { headers: authHeaders() });
+      const res = await apiFetch(`${API}/posts?limit=100`, { headers: authHeaders() });
       if (res.status === 401) { logout(); return; }
       const data = await res.json();
       document.getElementById("loading").style.display = "none";
@@ -422,7 +448,7 @@
     // ── Edit post ──────────────────────────────────────────
     async function editPost(id, slug) {
       await loadTags();
-      const res = await fetch(`${API}/posts/${slug}`, { headers: authHeaders() });
+      const res = await apiFetch(`${API}/posts/${slug}`, { headers: authHeaders() });
       if (!res.ok) return;
       const post = await res.json();
 
@@ -453,7 +479,7 @@
     // ── Delete post ────────────────────────────────────────
     async function deletePost(id, title) {
       if (!await showConfirm({ title: `Delete post?`, message: `"${title}" will be permanently deleted.`, okText: "Delete", cancelText: "Cancel" })) return;
-      await fetch(`${API}/posts/${id}`, { method: "DELETE", headers: authHeaders() });
+      await apiFetch(`${API}/posts/${id}`, { method: "DELETE", headers: authHeaders() });
       showToast("Post deleted.");
       loadPosts();
     }
@@ -466,7 +492,7 @@
       const isEditing = textarea.style.display !== "none";
 
       if (isEditing) {
-        preview.innerHTML = marked.parse(textarea.value || "*Nothing to preview yet.*");
+        preview.innerHTML = DOMPurify.sanitize(marked.parse(textarea.value || "*Nothing to preview yet.*"));
         preview.querySelectorAll("p").forEach(p => {
           const nodes = [...p.childNodes].filter(n => !(n.nodeType === Node.TEXT_NODE && !n.textContent.trim()));
           if (nodes.length > 1 && nodes.every(n => n.nodeName === "IMG")) p.classList.add("img-row");
@@ -530,7 +556,7 @@
       const query = document.getElementById("picker-search").value.trim();
       grid.innerHTML = '<div style="color:var(--muted);padding:1rem">Loading…</div>';
       const url = query ? `${API}/images?q=${encodeURIComponent(query)}` : `${API}/images`;
-      const res = await fetch(url, { headers: authHeaders() });
+      const res = await apiFetch(url, { headers: authHeaders() });
       if (!res.ok) { grid.innerHTML = '<div style="color:var(--danger);padding:1rem">Failed to load images.</div>'; return; }
       const images = await res.json();
       if (!images.length) { grid.innerHTML = '<div class="empty-state">No images found.</div>'; return; }
@@ -596,7 +622,7 @@
 
         const form = new FormData();
         form.append("image", file);
-        const res = await fetch(`${API}/images`, {
+        const res = await apiFetch(`${API}/images`, {
           method: "POST",
           headers: { "Authorization": "Bearer " + localStorage.getItem("authToken") },
           body: form,
@@ -632,7 +658,7 @@
 
     // ── Toggle approve (admin only) ────────────────────────
     async function toggleApprove(id, currentlyApproved) {
-      const res = await fetch(`${API}/posts/${id}`, {
+      const res = await apiFetch(`${API}/posts/${id}`, {
         method: "PUT",
         headers: authHeaders(),
         body: JSON.stringify({ approved: !currentlyApproved }),
@@ -648,7 +674,7 @@
 
     // ── Toggle publish ─────────────────────────────────────
     async function togglePublish(id, currentlyPublished) {
-      const res = await fetch(`${API}/posts/${id}`, {
+      const res = await apiFetch(`${API}/posts/${id}`, {
         method: "PUT",
         headers: authHeaders(),
         body: JSON.stringify({ published: !currentlyPublished }),
@@ -729,7 +755,7 @@
       };
 
       const id  = document.getElementById("post-id").value;
-      const res = await fetch(id ? `${API}/posts/${id}` : `${API}/posts`, {
+      const res = await apiFetch(id ? `${API}/posts/${id}` : `${API}/posts`, {
         method: id ? "PUT" : "POST",
         headers: authHeaders(),
         body: JSON.stringify(body),
@@ -778,7 +804,7 @@
     document.getElementById("btn-create-tag").addEventListener("click", async () => {
       const name = document.getElementById("new-tag-main").value.trim();
       if (!name) return;
-      await fetch(`${API}/tags`, { method: "POST", headers: authHeaders(), body: JSON.stringify({ name }) });
+      await apiFetch(`${API}/tags`, { method: "POST", headers: authHeaders(), body: JSON.stringify({ name }) });
       document.getElementById("new-tag-main").value = "";
       await loadTags();
       renderTagManager();
@@ -797,7 +823,7 @@
         cancelText: "Cancel",
       });
       if (!confirmed) return;
-      await fetch(`${API}/tags/${id}`, { method: "DELETE", headers: authHeaders() });
+      await apiFetch(`${API}/tags/${id}`, { method: "DELETE", headers: authHeaders() });
       await loadTags();
       renderTagManager();
       showToast("Tag deleted.");
@@ -812,7 +838,7 @@
     document.getElementById("btn-cancel-user").addEventListener("click", () => showView("view-users"));
 
     async function loadUsers() {
-      const res = await fetch(`${API}/users`, { headers: authHeaders() });
+      const res = await apiFetch(`${API}/users`, { headers: authHeaders() });
       const users = await res.json();
       renderUsersTable(users);
     }
@@ -879,7 +905,7 @@
       const pw = document.getElementById("user-password").value;
       if (pw) body.password = pw;
 
-      const res = await fetch(id ? `${API}/users/${id}` : `${API}/users`, {
+      const res = await apiFetch(id ? `${API}/users/${id}` : `${API}/users`, {
         method: id ? "PUT" : "POST",
         headers: authHeaders(),
         body: JSON.stringify(body)
@@ -902,7 +928,7 @@
         ? `"${username}" has ${postCount} post${postCount !== 1 ? "s" : ""}. The account will be deleted but their posts will remain, with no author assigned.`
         : `"${username}" will be permanently deleted.`;
       if (!await showConfirm({ title: `Delete user?`, message: msg, okText: "Delete", cancelText: "Cancel" })) return;
-      const res = await fetch(`${API}/users/${id}`, { method: "DELETE", headers: authHeaders() });
+      const res = await apiFetch(`${API}/users/${id}`, { method: "DELETE", headers: authHeaders() });
       if (res.ok) { showToast("User deleted."); await loadUsers(); }
       else { const err = await res.json(); showToast("Error: " + err.error); }
     }
@@ -934,7 +960,7 @@
       const query = document.getElementById("img-search").value.trim();
       grid.innerHTML = '<div style="color:var(--muted);padding:1rem">Loading…</div>';
       const url = query ? `${API}/images?q=${encodeURIComponent(query)}` : `${API}/images`;
-      const res = await fetch(url, { headers: authHeaders() });
+      const res = await apiFetch(url, { headers: authHeaders() });
       if (!res.ok) { grid.innerHTML = '<div style="color:var(--danger);padding:1rem">Failed to load images.</div>'; return; }
       const images = await res.json();
       renderImageGrid(images);
@@ -983,7 +1009,7 @@
         bar.style.width = `${(i / files.length) * 100}%`;
         const form = new FormData();
         form.append("image", files[i]);
-        await fetch(`${API}/images`, {
+        await apiFetch(`${API}/images`, {
           method: "POST",
           headers: { "Authorization": "Bearer " + localStorage.getItem("authToken") },
           body: form,
@@ -999,7 +1025,7 @@
 
     async function deleteImage(key, filename) {
       if (!await showConfirm({ title: `Delete image?`, message: `"${filename}" will be permanently deleted from S3.`, okText: "Delete", cancelText: "Cancel" })) return;
-      const res = await fetch(`${API}/images/${key}`, { method: "DELETE", headers: authHeaders() });
+      const res = await apiFetch(`${API}/images/${key}`, { method: "DELETE", headers: authHeaders() });
       if (res.ok) { showToast("Image deleted."); await loadImages(); }
       else { const err = await res.json(); showToast("Error: " + err.error); }
     }

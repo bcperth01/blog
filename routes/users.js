@@ -3,6 +3,7 @@ const router  = express.Router();
 const bcrypt  = require("bcryptjs");
 const db      = require("../db");
 const { verifyToken, requireRole } = require("../middleware/auth");
+const serverError = require("../lib/errors");
 
 // All user routes require admin
 router.use(verifyToken, requireRole("admin"));
@@ -20,7 +21,7 @@ router.get("/", async (req, res) => {
     );
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return serverError(res, err);
   }
 });
 
@@ -29,6 +30,8 @@ router.post("/", async (req, res) => {
   const { username, email, password, role = "contributor" } = req.body;
   if (!username || !email || !password)
     return res.status(400).json({ error: "username, email and password are required" });
+  if (username.length > 50) return res.status(400).json({ error: "Username must be 50 characters or fewer" });
+  if (email.length > 255) return res.status(400).json({ error: "Email must be 255 characters or fewer" });
   if (!["admin", "contributor"].includes(role))
     return res.status(400).json({ error: "role must be admin or contributor" });
   try {
@@ -40,7 +43,7 @@ router.post("/", async (req, res) => {
     res.status(201).json(rows[0]);
   } catch (err) {
     if (err.code === "23505") return res.status(409).json({ error: "Username or email already exists" });
-    res.status(500).json({ error: err.message });
+    return serverError(res, err);
   }
 });
 
@@ -63,7 +66,7 @@ router.put("/:id", async (req, res) => {
     res.json(rows[0]);
   } catch (err) {
     if (err.code === "23505") return res.status(409).json({ error: "Username or email already exists" });
-    res.status(500).json({ error: err.message });
+    return serverError(res, err);
   }
 });
 
@@ -75,7 +78,7 @@ router.delete("/:id", async (req, res) => {
     await db.query("DELETE FROM users WHERE id = $1", [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return serverError(res, err);
   }
 });
 

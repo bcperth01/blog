@@ -1,2 +1,4 @@
 node_modules/
 .env
+readme.md
+infra/cdk.context.json
