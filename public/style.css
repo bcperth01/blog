@@ -585,3 +585,5 @@ nav a:hover, nav a.active { color: var(--accent); text-decoration: none; }
 
 #lb-toolbar button:hover { background: rgba(255,255,255,0.3); }
 
+/* ── Log filter buttons ────────────────────────────────── */
+.log-filter.active { background: var(--accent); color: #fff; border-color: var(--accent); }

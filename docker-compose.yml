@@ -26,6 +26,8 @@ services:
       db:
         condition: service_healthy
     env_file: .env
+    volumes:
+      - /var/log:/host-logs:ro
     environment:
       # Override DB_HOST to point at the db container (not localhost)
       DB_HOST:     db

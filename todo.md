@@ -58,13 +58,10 @@ Options:
 
 ---
 
-### Log viewer for hack attempts
-Add an admin page to view server and Nginx access logs, filtered for suspicious activity such as:
-- Repeated failed login attempts (rate limiter hits)
-- 404s on common attack paths (e.g. `/wp-admin`, `/.env`, `/phpmyadmin`)
-- Unusual request volumes from a single IP
-
-Implementation options:
-- Parse `/var/log/nginx/access.log` on the EC2 via a new admin API endpoint
-- Or add structured logging to the Express app (e.g. `morgan` middleware) and expose a log viewer in the admin panel
-- ✅ fail2ban installed on the EC2 to automatically block IPs with repeated failed SSH or login attempts
+### Log viewer for hack attempts ✅
+- ✅ Admin log viewer added — parses `/var/log/nginx/access.log` via `GET /api/logs`
+- ✅ Filters: All, Suspicious (attack paths + 429/5xx), 404s, Banned IPs
+- ✅ Stats summary: total requests, unique IPs, attack probes, errors, currently banned IPs
+- ✅ Top 10 IPs by request volume displayed
+- ✅ Rows highlighted for known attack paths (wp-admin, .env, .php, xmlrpc, etc.)
+- ✅ fail2ban installed on the EC2 to automatically block IPs with repeated failed SSH login attempts

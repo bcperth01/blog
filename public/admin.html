@@ -56,6 +56,7 @@
       <button class="btn btn-secondary" id="btn-manage-tags">Manage Tags</button>
       <button class="btn btn-secondary admin-only" id="btn-manage-users" style="display:none">Manage Users</button>
       <button class="btn btn-secondary" id="btn-manage-images">Images</button>
+      <button class="btn btn-secondary admin-only" id="btn-logs" style="display:none">Logs</button>
     </div>
 
     <!-- ── Posts table ── -->
@@ -218,6 +219,64 @@
       </div>
     </div>
 
+    <!-- ── Log viewer ── -->
+    <div id="view-logs" style="display:none">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap">
+        <h2 class="page-title" style="margin:0">Traffic Logs</h2>
+        <div style="flex:1"></div>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+          <button class="btn btn-secondary log-filter active" data-filter="all">All</button>
+          <button class="btn btn-secondary log-filter" data-filter="suspicious">Suspicious</button>
+          <button class="btn btn-secondary log-filter" data-filter="404s">404s</button>
+          <button class="btn btn-secondary log-filter" data-filter="banned">Banned IPs</button>
+        </div>
+        <button class="btn btn-secondary" id="btn-refresh-logs" style="padding:0.4rem 0.85rem">↻ Refresh</button>
+        <button class="btn btn-secondary" id="btn-back-from-logs">← Back to Posts</button>
+      </div>
+
+      <div id="log-stats" style="display:none;margin-bottom:1.25rem">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:0.75rem;margin-bottom:1rem">
+          <div class="form-card" style="padding:0.85rem 1rem;text-align:center">
+            <div style="font-size:1.5rem;font-weight:700;color:var(--accent)" id="stat-total">—</div>
+            <div style="font-size:0.78rem;color:var(--muted)">Requests (last 2000)</div>
+          </div>
+          <div class="form-card" style="padding:0.85rem 1rem;text-align:center">
+            <div style="font-size:1.5rem;font-weight:700;color:var(--accent)" id="stat-ips">—</div>
+            <div style="font-size:0.78rem;color:var(--muted)">Unique IPs</div>
+          </div>
+          <div class="form-card" style="padding:0.85rem 1rem;text-align:center">
+            <div style="font-size:1.5rem;font-weight:700;color:#f59e0b" id="stat-suspicious">—</div>
+            <div style="font-size:0.78rem;color:var(--muted)">Attack Probes</div>
+          </div>
+          <div class="form-card" style="padding:0.85rem 1rem;text-align:center">
+            <div style="font-size:1.5rem;font-weight:700;color:var(--danger)" id="stat-errors">—</div>
+            <div style="font-size:0.78rem;color:var(--muted)">4xx / 5xx Errors</div>
+          </div>
+          <div class="form-card" style="padding:0.85rem 1rem;text-align:center">
+            <div style="font-size:1.5rem;font-weight:700;color:var(--danger)" id="stat-banned">—</div>
+            <div style="font-size:0.78rem;color:var(--muted)">Currently Banned</div>
+          </div>
+        </div>
+        <div id="top-ips-wrap" style="margin-bottom:1rem"></div>
+      </div>
+
+      <div id="log-unavailable" style="display:none" class="empty-state">
+        Log file not available — logs are only accessible when running on the server.
+      </div>
+
+      <div id="log-loading" style="display:none;color:var(--muted);padding:1rem">Loading…</div>
+
+      <div style="overflow-x:auto">
+        <table class="admin-table" id="log-table" style="display:none;font-size:0.82rem">
+          <thead>
+            <tr><th>Time</th><th>IP</th><th>Method</th><th>Path</th><th>Status</th><th>User Agent</th></tr>
+          </thead>
+          <tbody id="log-tbody"></tbody>
+        </table>
+      </div>
+      <div id="log-empty" style="display:none" class="empty-state">No entries match this filter.</div>
+    </div>
+
   </main>
 
   <!-- ── Confirm dialog ── -->
@@ -304,6 +363,9 @@
       if (currentUser.role === "admin") {
         document.getElementById("btn-manage-users").style.display = "";
       }
+      if (currentUser.role === "admin") {
+        document.getElementById("btn-logs").style.display = "";
+      }
       return true;
     }
 
@@ -332,7 +394,7 @@
     }
 
     // ── View helpers ───────────────────────────────────────
-    const ALL_VIEWS = ["view-posts","view-form","view-tags","view-users","view-user-form","view-images"];
+    const ALL_VIEWS = ["view-posts","view-form","view-tags","view-users","view-user-form","view-images","view-logs"];
     function showView(id) {
       ALL_VIEWS.forEach(v => document.getElementById(v).style.display = v === id ? "block" : "none");
     }
@@ -1060,6 +1122,89 @@
     themeBtn.addEventListener("click", () => {
       applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
     });
+
+    // ── Log viewer ─────────────────────────────────────────
+    let currentLogFilter = "all";
+
+    document.getElementById("btn-logs").addEventListener("click", () => {
+      showView("view-logs");
+      loadLogs();
+    });
+    document.getElementById("btn-back-from-logs").addEventListener("click", () => showView("view-posts"));
+    document.getElementById("btn-refresh-logs").addEventListener("click", loadLogs);
+
+    document.querySelectorAll(".log-filter").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".log-filter").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentLogFilter = btn.dataset.filter;
+        loadLogs();
+      });
+    });
+
+    async function loadLogs() {
+      document.getElementById("log-loading").style.display = "block";
+      document.getElementById("log-table").style.display   = "none";
+      document.getElementById("log-empty").style.display   = "none";
+      document.getElementById("log-unavailable").style.display = "none";
+      document.getElementById("log-stats").style.display   = "none";
+
+      const res  = await apiFetch(`${API}/logs?filter=${currentLogFilter}&limit=200`);
+      const data = await res.json();
+      document.getElementById("log-loading").style.display = "none";
+
+      if (!data.available) {
+        document.getElementById("log-unavailable").style.display = "block";
+        return;
+      }
+
+      // Render stats
+      const s = data.stats;
+      document.getElementById("stat-total").textContent     = s.total.toLocaleString();
+      document.getElementById("stat-ips").textContent       = s.uniqueIPs.toLocaleString();
+      document.getElementById("stat-suspicious").textContent = s.suspicious.toLocaleString();
+      document.getElementById("stat-errors").textContent    = s.errors.toLocaleString();
+      document.getElementById("stat-banned").textContent    = s.bannedIPs.length;
+      document.getElementById("log-stats").style.display    = "block";
+
+      // Top IPs
+      const topWrap = document.getElementById("top-ips-wrap");
+      if (s.topIPs.length) {
+        topWrap.innerHTML = `<div style="font-size:0.82rem;font-weight:600;margin-bottom:0.4rem">Top IPs</div>` +
+          `<div style="display:flex;flex-wrap:wrap;gap:0.4rem">` +
+          s.topIPs.map(({ ip, count }) =>
+            `<span style="background:var(--border);padding:0.2rem 0.6rem;border-radius:999px;font-size:0.78rem">${escHtml(ip)} <strong>${count}</strong></span>`
+          ).join("") + `</div>`;
+      } else {
+        topWrap.innerHTML = "";
+      }
+
+      if (!data.entries.length) {
+        document.getElementById("log-empty").style.display = "block";
+        return;
+      }
+
+      // Render table
+      const tbody = document.getElementById("log-tbody");
+      tbody.innerHTML = data.entries.map(e => {
+        const statusClass = e.status >= 500 ? "color:#ef4444" : e.status >= 400 ? "color:#f59e0b" : e.status >= 300 ? "color:var(--muted)" : "color:#22c55e";
+        const rowHighlight = ATTACK_RE_CLIENT.test(e.path) ? "background:rgba(239,68,68,0.06)" : "";
+        const shortUA = e.ua.length > 60 ? e.ua.slice(0, 60) + "…" : e.ua;
+        return `<tr style="${rowHighlight}">
+          <td style="white-space:nowrap">${escHtml(e.time)}</td>
+          <td style="white-space:nowrap">${escHtml(e.ip)}</td>
+          <td>${escHtml(e.method)}</td>
+          <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(e.path)}">${escHtml(e.path)}</td>
+          <td style="font-weight:600;${statusClass}">${e.status}</td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)" title="${escHtml(e.ua)}">${escHtml(shortUA)}</td>
+        </tr>`;
+      }).join("");
+
+      document.getElementById("log-table").style.display = "table";
+    }
+
+    // Client-side copy of the attack path regex (for row highlighting)
+    const ATTACK_RE_CLIENT = /wp-admin|\.env|phpmyadmin|\.php(\?|$)|xmlrpc|\.git\/|config\.|cmd\.exe|\.asp|\.jsp|eval-stdin|setup\.cgi|\/etc\/passwd/i;
   </script>
 </body>
 </html>
