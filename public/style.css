@@ -329,6 +329,16 @@ nav a:hover, nav a.active { color: var(--accent); text-decoration: none; }
 .admin-table td { padding: 0.65rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .admin-table tr:last-child td { border-bottom: none; }
 .admin-table .actions { display: flex; gap: 0.5rem; }
+.row-menu { position: relative; display: inline-block; }
+.row-menu-btn { background: none; border: 1px solid var(--border); border-radius: var(--radius); padding: 0.2rem 0.55rem; font-size: 1.1rem; cursor: pointer; color: var(--text); line-height: 1; }
+.row-menu-btn:hover { background: var(--border); }
+.row-menu-dropdown { display: none; position: absolute; right: 0; top: 100%; z-index: 200; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 140px; overflow: hidden; }
+[data-theme="dark"] .row-menu-dropdown { background: #2a2d3d; }
+.row-menu-dropdown.open { display: block; }
+.row-menu-dropdown a, .row-menu-dropdown button { display: block; width: 100%; text-align: left; padding: 0.5rem 0.85rem; font-size: 0.85rem; background: none; border: none; border-bottom: 1px solid var(--border); cursor: pointer; color: var(--text); text-decoration: none; }
+.row-menu-dropdown a:last-child, .row-menu-dropdown button:last-child { border-bottom: none; }
+.row-menu-dropdown a:hover, .row-menu-dropdown button:hover { background: var(--border); }
+.row-menu-dropdown .danger { color: var(--danger); }
 .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
 .status-dot.pub { background: #22c55e; }
 .status-dot.draft { background: #f59e0b; }

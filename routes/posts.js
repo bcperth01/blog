@@ -67,8 +67,8 @@ router.get("/", optionalAuth, async (req, res) => {
       ? `ts_rank(p.search_vector, websearch_to_tsquery('english', $${searchParamIdx})) DESC, p.created_at DESC`
       : `p.created_at DESC`;
     const { rows } = await db.query(
-      `SELECT p.id, p.title, p.slug, p.excerpt, p.published, p.approved, p.likes, p.hits, p.card_image, p.created_at, p.updated_at, p.author_id
-       FROM posts p ${where}
+      `SELECT p.id, p.title, p.slug, p.excerpt, p.published, p.approved, p.likes, p.hits, p.card_image, p.created_at, p.updated_at, p.author_id, u.username AS author_username
+       FROM posts p LEFT JOIN users u ON u.id = p.author_id ${where}
        ORDER BY ${orderBy}
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
       params

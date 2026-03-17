@@ -67,7 +67,7 @@
       <div class="form-card" style="padding:0;overflow:hidden">
         <table class="admin-table">
           <thead>
-            <tr><th>Title</th><th>Status</th><th>Approved</th><th>Created</th><th>Tags</th><th>Actions</th></tr>
+            <tr><th>Title</th><th title="Published or not">Pub</th><th title="Approved or not">App</th><th>Created</th><th>Tags</th><th id="th-author" style="display:none">Author</th><th>Actions</th></tr>
           </thead>
           <tbody id="posts-tbody"></tbody>
         </table>
@@ -414,6 +414,7 @@
       document.getElementById("nav-username").textContent = currentUser.username;
       if (currentUser.role === "admin") {
         document.getElementById("btn-manage-users").style.display = "";
+        document.getElementById("th-author").style.display = "";
       }
       if (currentUser.role === "admin") {
         document.getElementById("btn-logs").style.display = "";
@@ -447,6 +448,19 @@
     function formatDate(iso) {
       return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
     }
+    function closeRowMenus() {
+      document.querySelectorAll(".row-menu-dropdown.open").forEach(d => d.classList.remove("open"));
+    }
+    function toggleRowMenu(btn) {
+      const dropdown = btn.nextElementSibling;
+      const isOpen = dropdown.classList.contains("open");
+      closeRowMenus();
+      if (!isOpen) dropdown.classList.add("open");
+    }
+    document.addEventListener("click", e => {
+      if (!e.target.closest(".row-menu")) closeRowMenus();
+    });
+
     function escHtml(s) {
       return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
     }
@@ -476,29 +490,27 @@
     function renderPostsTable(posts) {
       const tbody = document.getElementById("posts-tbody");
       if (!posts.length) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:2rem">No posts yet.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:2rem">No posts yet.</td></tr>';
         return;
       }
       tbody.innerHTML = posts.map(p => `
         <tr>
           <td><strong>${escHtml(p.title)}</strong></td>
-          <td>
-            <span class="status-dot ${p.published ? "pub" : "draft"}"></span>
-            ${p.published ? "Published" : "Draft"}
-          </td>
-          <td>
-            <span class="status-dot ${p.approved ? "pub" : "draft"}"></span>
-            ${p.approved ? "Approved" : "Pending"}
-          </td>
+          <td style="text-align:center;font-size:1rem;color:${p.published ? "#28a745" : "#dc3545"}">${p.published ? "✓" : "✗"}</td>
+          <td style="text-align:center;font-size:1rem;color:${p.approved ? "#28a745" : "#dc3545"}">${p.approved ? "✓" : "✗"}</td>
           <td>${formatDate(p.created_at)}</td>
           <td>${p.tags.map(t => `<span class="tag" style="cursor:default">${escHtml(t.name)}</span>`).join(" ")}</td>
+          <td style="${currentUser.role !== 'admin' ? 'display:none' : ''}">${escHtml(p.author_username || "—")}</td>
           <td>
-            <div class="actions">
-              <button class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem" onclick="editPost(${p.id}, '${p.slug}')">Edit</button>
-              ${currentUser.role === "admin" || p.author_id === currentUser.id ? `<button class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem" onclick="togglePublish(${p.id}, ${p.published})">${p.published ? "Unpublish" : "Publish"}</button>` : ""}
-              ${currentUser.role === "admin" ? `<button class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem" onclick="toggleApprove(${p.id}, ${p.approved})">${p.approved ? "Unapprove" : "Approve"}</button>` : ""}
-              <button class="btn btn-danger"    style="padding:0.3rem 0.7rem;font-size:0.82rem" onclick="deletePost(${p.id}, '${escHtml(p.title)}')">Delete</button>
-              <a class="btn btn-secondary" href="/post.html?slug=${p.slug}" style="padding:0.3rem 0.7rem;font-size:0.82rem">View</a>
+            <div class="row-menu">
+              <button class="row-menu-btn" onclick="toggleRowMenu(this)">⋮</button>
+              <div class="row-menu-dropdown">
+                <button onclick="closeRowMenus();editPost(${p.id}, '${p.slug}')">Edit</button>
+                ${currentUser.role === "admin" || p.author_id === currentUser.id ? `<button onclick="closeRowMenus();togglePublish(${p.id}, ${p.published})">${p.published ? "Unpublish" : "Publish"}</button>` : ""}
+                ${currentUser.role === "admin" ? `<button onclick="closeRowMenus();toggleApprove(${p.id}, ${p.approved})">${p.approved ? "Unapprove" : "Approve"}</button>` : ""}
+                <a href="/post.html?slug=${p.slug}" target="_blank">View</a>
+                <button class="danger" onclick="closeRowMenus();deletePost(${p.id}, '${escHtml(p.title)}')">Delete</button>
+              </div>
             </div>
           </td>
         </tr>
