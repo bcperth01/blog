@@ -65,8 +65,10 @@ jobs:
               sudo systemctl start fail2ban
             fi
 
-            # Install AWS CLI and set up daily backup cron
-            sudo dnf install -y awscli
+            # Install AWS CLI and cron, then set up daily backup
+            sudo dnf install -y awscli cronie
+            sudo systemctl enable crond
+            sudo systemctl start crond
             cp $HOME/app/scripts/backup.sh $HOME/backup.sh
             chmod +x $HOME/backup.sh
             (crontab -l 2>/dev/null | grep -v "backup.sh"; echo "0 2 * * * $HOME/backup.sh >> $HOME/backup.log 2>&1") | crontab -
