@@ -77,6 +77,13 @@ ${postUrls}
   }
 });
 
+// Block common attack/probe paths with 404 instead of falling through to index.html
+const BLOCKED_PATHS = /\.(env|git|sql|bak|log|ini|cfg|conf|yml|yaml|json|lock|sh|bash|zip|tar|gz)$|wp-admin|wp-login|phpmyadmin|xmlrpc|\.php$|eval-stdin|setup\.cgi|\/etc\/passwd/i;
+app.use((req, res, next) => {
+  if (BLOCKED_PATHS.test(req.path)) return res.status(404).end();
+  next();
+});
+
 // Serve index.html for any unmatched route (SPA fallback)
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
