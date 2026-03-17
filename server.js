@@ -26,7 +26,7 @@ app.use(helmet({
       styleSrc:   ["'self'", "https:", "'unsafe-inline'"],
       imgSrc:     ["'self'", "data:", "https:"],
       fontSrc:    ["'self'", "https:", "data:"],
-      connectSrc: ["'self'"],
+      connectSrc: ["'self'", "cdn.jsdelivr.net"],
       scriptSrcAttr: ["'unsafe-inline'"],
       objectSrc:  ["'none'"],
       frameAncestors: ["'self'"],
