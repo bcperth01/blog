@@ -11,7 +11,12 @@ router.use(verifyToken, requireRole("admin"));
 router.get("/", async (req, res) => {
   try {
     const { rows } = await db.query(
-      "SELECT id, username, email, role, created_at FROM users ORDER BY created_at DESC"
+      `SELECT u.id, u.username, u.email, u.role, u.created_at,
+              COUNT(p.id)::int AS post_count
+       FROM users u
+       LEFT JOIN posts p ON p.author_id = u.id
+       GROUP BY u.id
+       ORDER BY u.created_at DESC`
     );
     res.json(rows);
   } catch (err) {

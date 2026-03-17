@@ -97,9 +97,11 @@
           </div>
           <div class="form-group">
             <span style="font-size:0.88rem;font-weight:600">Tags</span>
-            <div class="tag-checkboxes" id="tag-checkboxes" role="group" aria-label="Tags"></div>
+            <div id="assigned-tags" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.35rem;min-height:1.8rem"></div>
             <div style="margin-top:0.5rem;display:flex;gap:0.5rem">
-              <input type="text" id="new-tag-input" placeholder="Add new tag…" aria-label="Add new tag" style="flex:1;padding:0.4rem 0.6rem;border:1px solid var(--border);border-radius:var(--radius);font-size:0.88rem" />
+              <select id="tag-select" aria-label="Add a tag" style="flex:1;padding:0.4rem 0.6rem;border:1px solid var(--border);border-radius:var(--radius);font-size:0.88rem;background:var(--bg);color:var(--text)">
+                <option value="">Add a tag…</option>
+              </select>
               <button type="button" class="btn btn-secondary" id="btn-add-tag" style="padding:0.4rem 0.85rem">Add</button>
             </div>
           </div>
@@ -165,9 +167,9 @@
 
     <!-- ── Image manager ── -->
     <div id="view-images" style="display:none">
-      <h2 class="page-title">Images</h2>
-      <div class="upload-row" style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap">
-        <label class="btn btn-primary" for="img-file-input" style="cursor:pointer">↑ Upload Images</label>
+      <div class="upload-row" style="position:sticky;top:57px;z-index:9;background:var(--bg);padding:0.75rem 0;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;border-bottom:1px solid var(--border);margin-bottom:1.25rem">
+        <h2 class="page-title" style="margin:0">Images</h2>
+        <label class="btn btn-primary" for="img-file-input" style="cursor:pointer">↑ Upload</label>
         <input type="file" id="img-file-input" accept="image/*" multiple style="display:none" />
         <input type="text" id="img-search" placeholder="Search images…" aria-label="Search images" style="flex:1;min-width:180px;padding:0.5rem 0.75rem;border:1px solid var(--border);border-radius:var(--radius);font-size:0.95rem;background:var(--bg);color:var(--text)" />
         <div id="upload-progress" style="display:none;flex:1;min-width:200px">
@@ -176,11 +178,9 @@
             <div id="upload-bar" style="background:var(--accent);height:5px;border-radius:4px;width:0%;transition:width 0.2s"></div>
           </div>
         </div>
-      </div>
-      <div class="image-grid" id="image-grid"></div>
-      <div style="margin-top:1.25rem">
         <button class="btn btn-secondary" id="btn-back-from-images">← Back to Posts</button>
       </div>
+      <div class="image-grid" id="image-grid"></div>
     </div>
 
     <!-- ── User form ── -->
@@ -373,7 +373,8 @@
       document.getElementById("input-card-image").value = "";
       document.getElementById("card-image-preview").style.display = "none";
       document.getElementById("btn-clear-card-image").style.display = "none";
-      renderTagCheckboxes([]);
+      selectedTagIds = new Set();
+      renderAssignedTags();
       resetPreview();
       postDirty = false;
       showView("view-form");
@@ -442,7 +443,8 @@
         document.getElementById("card-image-preview").style.display = "none";
         document.getElementById("btn-clear-card-image").style.display = "none";
       }
-      renderTagCheckboxes(post.tags.map(t => t.id));
+      selectedTagIds = new Set(post.tags.map(t => t.id));
+      renderAssignedTags();
       resetPreview();
       postDirty = false;
       showView("view-form");
@@ -450,7 +452,7 @@
 
     // ── Delete post ────────────────────────────────────────
     async function deletePost(id, title) {
-      if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+      if (!await showConfirm({ title: `Delete post?`, message: `"${title}" will be permanently deleted.`, okText: "Delete", cancelText: "Cancel" })) return;
       await fetch(`${API}/posts/${id}`, { method: "DELETE", headers: authHeaders() });
       showToast("Post deleted.");
       loadPosts();
@@ -660,36 +662,45 @@
       }
     }
 
-    // ── Tag checkboxes ─────────────────────────────────────
-    function renderTagCheckboxes(selectedIds = []) {
-      const wrap = document.getElementById("tag-checkboxes");
-      wrap.innerHTML = allTags.map(t => {
-        const checked = selectedIds.includes(t.id);
-        return `
-          <label class="tag-checkbox-label ${checked ? "checked" : ""}" data-tag-id="${t.id}">
-            <input type="checkbox" value="${t.id}" ${checked ? "checked" : ""} onchange="toggleTagLabel(this)" />
-            ${escHtml(t.name)}
-          </label>`;
-      }).join("");
-    }
-    function toggleTagLabel(input) {
-      input.closest(".tag-checkbox-label").classList.toggle("checked", input.checked);
+    // ── Tag selection ──────────────────────────────────────
+    let selectedTagIds = new Set();
+
+    function renderAssignedTags() {
+      const wrap = document.getElementById("assigned-tags");
+      if (!selectedTagIds.size) {
+        wrap.innerHTML = '<span style="font-size:0.82rem;color:var(--muted)">No tags assigned.</span>';
+      } else {
+        wrap.innerHTML = [...selectedTagIds].map(id => {
+          const tag = allTags.find(t => t.id === id);
+          if (!tag) return "";
+          return `<span class="tag" style="cursor:default">${escHtml(tag.name)}<button type="button" onclick="removeTag(${id})" style="background:none;border:none;cursor:pointer;padding:0 0 0 0.3rem;font-size:0.85rem;color:inherit;line-height:1" title="Remove">×</button></span>`;
+        }).join("");
+      }
+      updateTagSelect();
     }
 
-    document.getElementById("btn-add-tag").addEventListener("click", async () => {
-      const name = document.getElementById("new-tag-input").value.trim();
-      if (!name) return;
-      const res = await fetch(`${API}/tags`, {
-        method: "POST", headers: authHeaders(), body: JSON.stringify({ name })
-      });
-      if (res.ok) {
-        const newTag = await res.json();
-        await loadTags();
-        const checked = [...document.querySelectorAll("#tag-checkboxes input:checked")].map(i => parseInt(i.value));
-        checked.push(newTag.id);
-        renderTagCheckboxes(checked);
-        document.getElementById("new-tag-input").value = "";
-      }
+    function updateTagSelect() {
+      const sel = document.getElementById("tag-select");
+      sel.innerHTML = '<option value="">Add a tag…</option>' +
+        allTags
+          .filter(t => !selectedTagIds.has(t.id))
+          .map(t => `<option value="${t.id}">${escHtml(t.name)}</option>`)
+          .join("");
+    }
+
+    function removeTag(id) {
+      selectedTagIds.delete(id);
+      renderAssignedTags();
+      postDirty = true;
+    }
+
+    document.getElementById("btn-add-tag").addEventListener("click", () => {
+      const sel = document.getElementById("tag-select");
+      const id = parseInt(sel.value);
+      if (!id) return;
+      selectedTagIds.add(id);
+      renderAssignedTags();
+      postDirty = true;
     });
 
     // ── Save post ──────────────────────────────────────────
@@ -707,7 +718,7 @@
       btn.disabled = true;
       status.textContent = "Saving…";
 
-      const tagIds = [...document.querySelectorAll("#tag-checkboxes input:checked")].map(i => parseInt(i.value));
+      const tagIds = [...selectedTagIds];
       const body = {
         title:      document.getElementById("input-title").value.trim(),
         excerpt:    document.getElementById("input-excerpt").value.trim(),
@@ -775,7 +786,17 @@
     });
 
     async function deleteTag(id, name) {
-      if (!confirm(`Delete tag "${name}"?`)) return;
+      const tag = allTags.find(t => t.id === id);
+      const count = tag ? tag.post_count : 0;
+      const confirmed = await showConfirm({
+        title:      `Delete tag "${name}"?`,
+        message:    count > 0
+          ? `This tag is assigned to ${count} post${count !== 1 ? "s" : ""}. Deleting it will remove it from all of them.`
+          : "This tag is not assigned to any posts.",
+        okText:     "Delete",
+        cancelText: "Cancel",
+      });
+      if (!confirmed) return;
       await fetch(`${API}/tags/${id}`, { method: "DELETE", headers: authHeaders() });
       await loadTags();
       renderTagManager();
@@ -812,7 +833,7 @@
             <div class="actions">
               <button class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.82rem" onclick="editUser(${u.id}, '${escHtml(u.username)}', '${escHtml(u.email)}', '${u.role}')">Edit</button>
               ${u.id !== currentUser.id
-                ? `<button class="btn btn-danger" style="padding:0.3rem 0.7rem;font-size:0.82rem" onclick="deleteUser(${u.id}, '${escHtml(u.username)}')">Delete</button>`
+                ? `<button class="btn btn-danger" style="padding:0.3rem 0.7rem;font-size:0.82rem" onclick="deleteUser(${u.id}, '${escHtml(u.username)}', ${u.post_count})">Delete</button>`
                 : `<span style="font-size:0.82rem;color:var(--muted);padding:0.3rem 0.5rem">(you)</span>`
               }
             </div>
@@ -876,8 +897,11 @@
       }
     });
 
-    async function deleteUser(id, username) {
-      if (!confirm(`Delete user "${username}"? This cannot be undone.`)) return;
+    async function deleteUser(id, username, postCount) {
+      const msg = postCount > 0
+        ? `"${username}" has ${postCount} post${postCount !== 1 ? "s" : ""}. The account will be deleted but their posts will remain, with no author assigned.`
+        : `"${username}" will be permanently deleted.`;
+      if (!await showConfirm({ title: `Delete user?`, message: msg, okText: "Delete", cancelText: "Cancel" })) return;
       const res = await fetch(`${API}/users/${id}`, { method: "DELETE", headers: authHeaders() });
       if (res.ok) { showToast("User deleted."); await loadUsers(); }
       else { const err = await res.json(); showToast("Error: " + err.error); }
@@ -974,7 +998,7 @@
     });
 
     async function deleteImage(key, filename) {
-      if (!confirm(`Delete "${filename}"? This cannot be undone.`)) return;
+      if (!await showConfirm({ title: `Delete image?`, message: `"${filename}" will be permanently deleted from S3.`, okText: "Delete", cancelText: "Cancel" })) return;
       const res = await fetch(`${API}/images/${key}`, { method: "DELETE", headers: authHeaders() });
       if (res.ok) { showToast("Image deleted."); await loadImages(); }
       else { const err = await res.json(); showToast("Error: " + err.error); }
