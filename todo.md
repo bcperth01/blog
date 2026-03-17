@@ -14,13 +14,9 @@ Note: URL encoding in content fields makes matching tricky and the content searc
 ---
 
 ### Firewall (AWS Security Group hardening)
-Review whether SSH (port 22) should remain open to the world or be restricted to a known IP address.
-Consider adding AWS WAF (Web Application Firewall) in front of the EC2 instance if traffic grows.
-Current CDK stack opens SSH to `0.0.0.0/0` — fine for now but should be locked down in production:
-```typescript
-// Replace anyIpv4() with your specific IP:
-sg.addIngressRule(ec2.Peer.ipv4("YOUR.IP.HERE/32"), ec2.Port.tcp(22), "SSH from my IP");
-```
+- Decided against restricting SSH to a specific IP — the GitHub Actions deploy pipeline also connects via SSH, making IP whitelisting impractical without also managing GitHub's IP ranges.
+- ✅ Added fail2ban as the primary SSH defence — bans IPs after 5 failed attempts for 1 hour.
+- Consider adding AWS WAF (Web Application Firewall) in front of the EC2 instance if traffic grows.
 
 ---
 
@@ -34,12 +30,23 @@ sg.addIngressRule(ec2.Peer.ipv4("YOUR.IP.HERE/32"), ec2.Port.tcp(22), "SSH from 
 ---
 
 ### Security improvements
-- **CORS**: Review and tighten if additional domains are added
+- ✅ **CORS**: Restricted to `https://blog.bcperth.com` via `cors()` middleware
+- ✅ **Rate limiting**: Login endpoint limited to 20 requests per 15 minutes
+- ✅ **Security headers**: helmet.js with custom CSP, HSTS, X-Frame-Options
 - **XSS via marked.js**: Add DOMPurify to sanitise rendered HTML from post content
 - **JWT expiry**: Reduce token lifetime from 7 days to 1–2 hours with a refresh token mechanism
 - **Verbose error messages**: Strip DB error details from API responses in production
 - **Input length limits**: Add max-length validation on post title, excerpt, username, etc.
-- **Rate limiting**: Extend rate limiting beyond just login — consider limiting image uploads and post creation
+
+---
+
+### Database backup
+The PostgreSQL data lives in a Docker volume on the EC2. If the instance is lost the data is gone.
+Options:
+- **Scheduled pg_dump to S3** — add a cron job on the EC2 that runs `pg_dump` daily and uploads the result to S3. Simple and reliable.
+- **AWS RDS** — migrate from the containerised Postgres to RDS for managed backups, snapshots, and multi-AZ. Higher cost but zero maintenance.
+
+Recommended starting point: daily `pg_dump` to S3 with a 30-day retention policy.
 
 ---
 
@@ -60,4 +67,4 @@ Add an admin page to view server and Nginx access logs, filtered for suspicious 
 Implementation options:
 - Parse `/var/log/nginx/access.log` on the EC2 via a new admin API endpoint
 - Or add structured logging to the Express app (e.g. `morgan` middleware) and expose a log viewer in the admin panel
-- ✅ Consider `fail2ban` on the EC2 to automatically block IPs with repeated failed SSH or login attempts
+- ✅ fail2ban installed on the EC2 to automatically block IPs with repeated failed SSH or login attempts
