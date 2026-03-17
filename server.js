@@ -52,6 +52,29 @@ app.use("/api/posts",  postsRouter);
 app.use("/api/tags",   tagsRouter);
 app.use("/api/images", imagesRouter);
 
+// Sitemap
+app.get("/sitemap.xml", async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      "SELECT slug, updated_at, created_at FROM posts WHERE published = true AND approved = true ORDER BY created_at DESC"
+    );
+    const base = process.env.SITE_URL || "https://blog.bcperth.com";
+    const postUrls = rows.map(p => {
+      const lastmod = (p.updated_at || p.created_at).toISOString().split("T")[0];
+      return `  <url><loc>${base}/post.html?slug=${p.slug}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>`;
+    }).join("\n");
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>${base}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>
+${postUrls}
+</urlset>`;
+    res.set("Content-Type", "application/xml");
+    res.send(xml);
+  } catch (err) {
+    res.status(500).send("Error generating sitemap");
+  }
+});
+
 // Serve index.html for any unmatched route (SPA fallback)
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));

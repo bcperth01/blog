@@ -4,6 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Brendan's Blog</title>
+  <meta name="description" content="Brendan's Blog — thoughts on software, technology and more." />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Brendan's Blog" />
+  <meta property="og:title" content="Brendan's Blog" />
+  <meta property="og:description" content="Brendan's Blog — thoughts on software, technology and more." />
+  <meta property="og:url" content="https://blog.bcperth.com/" />
+  <link rel="canonical" href="https://blog.bcperth.com/" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -106,7 +113,7 @@
           ${p.excerpt ? `<p class="excerpt">${escHtml(p.excerpt)}</p>` : ""}
           <div class="card-footer">
             <div class="tag-list">
-              ${p.tags.map(t => `<span class="tag" onclick="selectTag('${t.slug}')">${escHtml(t.name)}</span>`).join("")}
+              ${renderTags(p.tags)}
             </div>
             <div class="card-stats">
               <button class="like-btn" onclick="likePost(${p.id}, this)" title="Like this post">♥ <span>${p.likes}</span></button>
@@ -152,6 +159,22 @@
       if (e.key === "Enter") doSearch();
     });
     document.getElementById("search-btn").addEventListener("click", doSearch);
+
+    const TAG_LIMIT = 2;
+    function renderTags(tags) {
+      if (!tags.length) return "";
+      const visible = tags.slice(0, TAG_LIMIT)
+        .map(t => `<span class="tag" onclick="selectTag('${t.slug}')">${escHtml(t.name)}</span>`);
+      if (tags.length <= TAG_LIMIT) return visible.join("");
+      const hidden = tags.slice(TAG_LIMIT)
+        .map(t => `<span class="tag tag-hidden" onclick="selectTag('${t.slug}')">${escHtml(t.name)}</span>`);
+      const more = `<span class="tag tag-more" onclick="expandTags(this)">+${hidden.length}</span>`;
+      return [...visible, more, ...hidden].join("");
+    }
+    function expandTags(el) {
+      el.parentElement.querySelectorAll(".tag-hidden").forEach(t => t.classList.remove("tag-hidden"));
+      el.remove();
+    }
 
     function formatDate(iso) {
       return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });

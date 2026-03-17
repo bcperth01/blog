@@ -111,7 +111,7 @@ router.post("/", verifyToken, requireRole("admin", "contributor"), async (req, r
   const client = await db.connect();
   try {
     await client.query("BEGIN");
-    const slug = toSlug(title) + "-" + Date.now();
+    const slug = toSlug(title) + "-" + Date.now().toString(36);
     const { rows } = await client.query(
       "INSERT INTO posts (title, slug, content, excerpt, published, card_image, author_id) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *",
       [title, slug, content, excerpt, published, card_image, req.user.id]

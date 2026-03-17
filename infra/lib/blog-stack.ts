@@ -54,6 +54,11 @@ export class BlogStack extends cdk.Stack {
       "curl -SL https://github.com/docker/buildx/releases/download/v0.19.3/buildx-v0.19.3.linux-amd64 -o /home/ec2-user/.docker/cli-plugins/docker-buildx",
       "chmod +x /home/ec2-user/.docker/cli-plugins/docker-buildx",
       "chown -R ec2-user:ec2-user /home/ec2-user/.docker",
+      // fail2ban — blocks IPs with repeated SSH login failures
+      "dnf install -y fail2ban",
+      "printf '[DEFAULT]\\nbantime  = 1h\\nfindtime = 10m\\nmaxretry = 5\\nbackend  = systemd\\n\\n[sshd]\\nenabled = true\\n' > /etc/fail2ban/jail.local",
+      "systemctl enable fail2ban",
+      "systemctl start fail2ban",
     );
 
     // ── EC2 instance ─────────────────────────────────────────────

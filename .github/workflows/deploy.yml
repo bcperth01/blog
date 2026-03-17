@@ -56,6 +56,23 @@ jobs:
               [ -f "$f" ] && sudo docker compose exec -T db psql -U bloguser -d blogdb < "$f" || true
             done
 
+            # Install and configure fail2ban (idempotent)
+            if ! systemctl is-active --quiet fail2ban; then
+              sudo dnf install -y fail2ban
+              sudo tee /etc/fail2ban/jail.local > /dev/null <<'JAIL'
+[DEFAULT]
+bantime  = 1h
+findtime = 10m
+maxretry = 5
+backend  = systemd
+
+[sshd]
+enabled = true
+JAIL
+              sudo systemctl enable fail2ban
+              sudo systemctl start fail2ban
+            fi
+
             # Ensure Nginx is installed and running
             sudo dnf install -y nginx certbot python3-certbot-nginx
             sudo systemctl enable nginx

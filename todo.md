@@ -24,12 +24,12 @@ sg.addIngressRule(ec2.Peer.ipv4("YOUR.IP.HERE/32"), ec2.Port.tcp(22), "SSH from 
 
 ---
 
-### SEO improvements
-- Add `<meta name="description">` to each post page using the post excerpt
-- Add `<meta property="og:*">` Open Graph tags (title, description, image) for social sharing previews
-- Add a `sitemap.xml` endpoint generated dynamically from published posts
-- Add `<link rel="canonical">` to post pages
-- Ensure post slugs are human-readable (currently append a timestamp — could be cleaner)
+### SEO improvements ✅
+- ✅ Add `<meta name="description">` to each post page using the post excerpt
+- ✅ Add `<meta property="og:*">` Open Graph tags (title, description, image) for social sharing previews
+- ✅ Add a `sitemap.xml` endpoint generated dynamically from published posts
+- ✅ Add `<link rel="canonical">` to post pages
+- ✅ Ensure post slugs are human-readable (changed timestamp suffix to base-36, e.g. `-lk73ds0`)
 
 ---
 
@@ -60,4 +60,4 @@ Add an admin page to view server and Nginx access logs, filtered for suspicious 
 Implementation options:
 - Parse `/var/log/nginx/access.log` on the EC2 via a new admin API endpoint
 - Or add structured logging to the Express app (e.g. `morgan` middleware) and expose a log viewer in the admin panel
-- Consider `fail2ban` on the EC2 to automatically block IPs with repeated failed SSH or login attempts
+- ✅ Consider `fail2ban` on the EC2 to automatically block IPs with repeated failed SSH or login attempts

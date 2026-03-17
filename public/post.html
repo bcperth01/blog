@@ -4,6 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Post</title>
+  <meta name="description" content="" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Brendan's Blog" />
+  <meta property="og:title" content="" />
+  <meta property="og:description" content="" />
+  <meta property="og:image" content="" />
+  <meta property="og:url" content="" />
+  <link rel="canonical" href="" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -82,6 +90,17 @@
 
       const post = await res.json();
       document.title = post.title + " — Brendan's Blog";
+
+      // SEO meta tags
+      const desc = post.excerpt || "";
+      const canonical = window.location.origin + "/post.html?slug=" + post.slug;
+      const ogImage = post.card_image ? window.location.origin + post.card_image : "";
+      document.querySelector("meta[name='description']").setAttribute("content", desc);
+      document.querySelector("meta[property='og:title']").setAttribute("content", post.title + " — Brendan's Blog");
+      document.querySelector("meta[property='og:description']").setAttribute("content", desc);
+      document.querySelector("meta[property='og:url']").setAttribute("content", canonical);
+      document.querySelector("meta[property='og:image']").setAttribute("content", ogImage);
+      document.querySelector("link[rel='canonical']").setAttribute("href", canonical);
 
       document.getElementById("post-title").textContent = post.title;
       document.getElementById("post-date").textContent = formatDate(post.created_at);
