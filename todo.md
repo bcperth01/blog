@@ -46,11 +46,10 @@
 
 ---
 
-### Site visit counter
-Add a global visit counter displayed somewhere on the home page or in the admin dashboard.
-Options:
-- A `site_stats` table with a single `total_hits` counter, incremented on each public page load
-- Or track daily counts in a `site_hits (date, count)` table for a simple traffic graph in admin
+### Site visit counter ✅
+- ✅ `site_hits (date, count)` table tracks daily page views
+- ✅ `POST /api/stats/hit` incremented on every home page and post page load
+- ✅ Admin Traffic view with 30-day bar chart, total views, today's count, and active days
 
 ---
 
