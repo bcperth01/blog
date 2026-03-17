@@ -29,14 +29,14 @@ Note: URL encoding in content fields makes matching tricky and the content searc
 
 ---
 
-### Security improvements
+### Security improvements ✅
 - ✅ **CORS**: Restricted to `https://blog.bcperth.com` via `cors()` middleware
 - ✅ **Rate limiting**: Login endpoint limited to 20 requests per 15 minutes
 - ✅ **Security headers**: helmet.js with custom CSP, HSTS, X-Frame-Options
-- **XSS via marked.js**: Add DOMPurify to sanitise rendered HTML from post content
-- **JWT expiry**: Reduce token lifetime from 7 days to 1–2 hours with a refresh token mechanism
-- **Verbose error messages**: Strip DB error details from API responses in production
-- **Input length limits**: Add max-length validation on post title, excerpt, username, etc.
+- ✅ **XSS via marked.js**: DOMPurify added to sanitise marked.js HTML output in post.html and admin.html preview
+- ✅ **JWT expiry**: Access token reduced to 2h; 30d refresh token returned on login; `POST /api/auth/refresh` endpoint; `apiFetch` in admin.html silently refreshes on 401
+- ✅ **Verbose error messages**: `lib/errors.js` hides `err.message` in production behind "Internal server error"
+- ✅ **Input length limits**: Server-side validation on title (200), excerpt (500), content (200k), username (50), email (255), tag name (50); matching `maxlength` attributes on all admin forms
 
 ---
 
