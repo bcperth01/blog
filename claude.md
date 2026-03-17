@@ -360,6 +360,156 @@ Note: the `cdn-release` GitHub CDN path must be used for highlight.js, not the `
 
 ---
 
+### 12. SEO Improvements
+
+Meta tags, Open Graph, canonical links, and a dynamic sitemap were added.
+
+> *"can we add the seo improvements now"*
+
+Each post page dynamically sets its SEO tags after the post loads:
+
+```js
+document.querySelector("meta[name='description']").setAttribute("content", post.excerpt);
+document.querySelector("meta[property='og:title']").setAttribute("content", post.title + " — Brendan's Blog");
+document.querySelector("meta[property='og:image']").setAttribute("content", window.location.origin + post.card_image);
+document.querySelector("link[rel='canonical']").setAttribute("href", canonical);
+```
+
+A `/sitemap.xml` endpoint was added to `server.js`, dynamically generated from all published and approved posts:
+
+```js
+app.get("/sitemap.xml", async (req, res) => {
+  const { rows } = await db.query(
+    "SELECT slug, updated_at, created_at FROM posts WHERE published = true AND approved = true"
+  );
+  // ... builds XML and returns with Content-Type: application/xml
+});
+```
+
+Post slug suffixes were changed from a raw timestamp (`Date.now()`) to base-36 (`Date.now().toString(36)`) — e.g. `-lk73ds0` instead of `-1742212800000`.
+
+---
+
+### 13. Card Layout and Tag Overflow
+
+Two usability fixes were made to the post card grid.
+
+> *"can we change the cards so that they display correctly with a lot of tags"*
+> *"the same problem happening when the excerpts are multiline"*
+
+Tags beyond the first two are hidden behind a `+N` chip that expands in-place on click:
+
+```js
+function renderTags(tags) {
+  const LIMIT = 2;
+  if (tags.length <= LIMIT) return visible.join("");
+  const hidden = tags.slice(LIMIT).map(t => `<span class="tag tag-hidden" ...>`);
+  const more = `<span class="tag tag-more" onclick="expandTags(this)">+${hidden.length}</span>`;
+  return [...visible, more, ...hidden].join("");
+}
+function expandTags(el) {
+  el.parentElement.querySelectorAll(".tag-hidden").forEach(t => t.classList.remove("tag-hidden"));
+  el.remove();
+}
+```
+
+Cards were made flex-column with the footer pinned to the bottom so likes, views and the Read button always align across the grid regardless of excerpt length or tag count:
+
+```css
+.post-card { display: flex; flex-direction: column; }
+.post-card .card-footer { margin-top: auto; }
+.post-card .card-footer .tag-list { width: 100%; min-height: 1.8rem; }
+```
+
+---
+
+### 14. Security Hardening (Round 2)
+
+Several further security improvements were made after the initial hardening in step 9.
+
+> *"can we now complete the security improvements listed in todo.md"*
+
+**DOMPurify** was added to sanitise `marked.js` HTML output before it is set as `innerHTML`, preventing XSS from malicious post content:
+
+```js
+postBody.innerHTML = DOMPurify.sanitize(marked.parse(post.content || ""));
+```
+
+**JWT refresh tokens** — access tokens were reduced from 7 days to 2 hours. A 30-day refresh token is now returned on login and stored in `localStorage`. An `apiFetch` wrapper in `admin.html` silently refreshes the access token on any 401 response and retries the original request:
+
+```js
+async function apiFetch(url, options = {}) {
+  // ... sends request, on 401 calls POST /api/auth/refresh, retries
+}
+```
+
+**Verbose error suppression** — a shared `lib/errors.js` helper returns `"Internal server error"` in production instead of exposing raw database error messages.
+
+**Input length limits** — server-side validation added to all write endpoints (title 200, excerpt 500, content 200k, username 50, email 255, tag 50), with matching `maxlength` attributes on all admin forms.
+
+**Attack path blocking** — common probe paths (`.env`, `wp-admin`, `.php`, `xmlrpc`, etc.) now return 404 instead of falling through to the SPA catch-all and returning 200:
+
+```js
+const BLOCKED_PATHS = /\.(env|git|sql|bak|log|...)$|wp-admin|wp-login|phpmyadmin|.../i;
+app.use((req, res, next) => {
+  if (BLOCKED_PATHS.test(req.path)) return res.status(404).end();
+  next();
+});
+```
+
+---
+
+### 15. fail2ban
+
+fail2ban was installed on the EC2 to block IPs with repeated failed SSH login attempts.
+
+> *"yes add it"*
+
+Added to both `deploy.yml` (installs on existing EC2 on next deploy) and the CDK user data (included on fresh installs). Configuration bans an IP for 1 hour after 5 failed attempts within 10 minutes:
+
+```
+[DEFAULT]
+bantime  = 1h
+findtime = 10m
+maxretry = 5
+backend  = systemd
+
+[sshd]
+enabled = true
+```
+
+The decision was made not to restrict SSH to a specific IP in the AWS Security Group because the GitHub Actions deploy pipeline also connects via SSH, making IP whitelisting impractical.
+
+---
+
+### 16. Admin Log Viewer
+
+An admin-only log viewer was added to the admin panel, reading the Nginx access log directly from the host.
+
+> *"ok go ahead with the log viewer"*
+
+The Express app runs inside Docker so the host's `/var/log` directory is mounted read-only into the container via `docker-compose.yml`:
+
+```yaml
+app:
+  volumes:
+    - /var/log:/host-logs:ro
+```
+
+A new `GET /api/logs` endpoint (admin only) in `routes/logs.js` parses the nginx combined log format, applies filters, and returns stats:
+
+```js
+function parseLine(line) {
+  const m = line.match(/^(\S+) \S+ \S+ \[([^\]]+)\] "(\S+) (\S+) [^"]*" (\d+) (\d+) "[^"]*" "([^"]*)"/);
+  if (!m) return null;
+  return { ip: m[1], time: m[2], method: m[3], path: m[4], status: parseInt(m[5]), ... };
+}
+```
+
+The admin panel Logs view shows: summary stats (total requests, unique IPs, attack probes, errors, banned IPs), top 10 IPs by request volume, and a colour-coded request table. Filter buttons: All / Suspicious / 404s / Banned IPs. Attack path rows are highlighted in red. Currently banned IPs are read from `fail2ban.log`.
+
+---
+
 ## Typical Workflow
 
 The development process followed a consistent pattern:
@@ -380,13 +530,16 @@ blog/
 ├── server.js              # Express app entry point
 ├── db.js                  # PostgreSQL connection pool
 ├── routes/
-│   ├── auth.js            # Login, /me
+│   ├── auth.js            # Login, /me, /refresh
 │   ├── posts.js           # CRUD, like, hit endpoints
 │   ├── tags.js
 │   ├── users.js
-│   └── images.js          # Upload, proxy, delete
+│   ├── images.js          # Upload, proxy, delete
+│   └── logs.js            # Nginx log viewer (admin only)
+├── lib/
+│   └── errors.js          # Production-safe error helper
 ├── middleware/
-│   └── auth.js            # JWT verify/sign, requireRole
+│   └── auth.js            # JWT verify/sign, requireRole, refresh tokens
 ├── public/
 │   ├── index.html         # Home page (post cards)
 │   ├── post.html          # Single post view
