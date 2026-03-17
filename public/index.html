@@ -54,6 +54,7 @@
   <script>
     const API = "/api";
     let state = { search: "", tag: "", page: 1 };
+    fetch(`${API}/stats/hit`, { method: "POST" });
 
     async function loadTags() {
       const res = await fetch(`${API}/tags`);

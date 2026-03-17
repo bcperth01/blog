@@ -15,6 +15,7 @@ const usersRouter  = require("./routes/users");
 const imagesRouter = require("./routes/images");
 const logsRouter    = require("./routes/logs");
 const backupsRouter = require("./routes/backups");
+const statsRouter   = require("./routes/stats");
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -55,6 +56,7 @@ app.use("/api/tags",   tagsRouter);
 app.use("/api/images", imagesRouter);
 app.use("/api/logs",    logsRouter);
 app.use("/api/backups", backupsRouter);
+app.use("/api/stats",   statsRouter);
 
 // Sitemap
 app.get("/sitemap.xml", async (req, res) => {

@@ -58,6 +58,7 @@
       <button class="btn btn-secondary" id="btn-manage-images">Images</button>
       <button class="btn btn-secondary admin-only" id="btn-logs" style="display:none">Logs</button>
       <button class="btn btn-secondary admin-only" id="btn-backups" style="display:none">Backups</button>
+      <button class="btn btn-secondary admin-only" id="btn-traffic" style="display:none">Traffic</button>
     </div>
 
     <!-- ── Posts table ── -->
@@ -253,6 +254,23 @@
       <div id="backup-empty" style="display:none" class="empty-state">No backups found.</div>
     </div>
 
+    <!-- ── Traffic ── -->
+    <div id="view-traffic" style="display:none">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap">
+        <h2 class="page-title" style="margin:0">Site Traffic</h2>
+        <div style="flex:1"></div>
+        <button class="btn btn-secondary" id="btn-refresh-traffic">↻ Refresh</button>
+        <button class="btn btn-secondary" id="btn-back-from-traffic">← Back to Posts</button>
+      </div>
+      <div id="traffic-summary" class="form-card" style="padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;gap:2rem;flex-wrap:wrap"></div>
+      <div class="form-card" style="padding:1.25rem">
+        <div style="font-size:0.82rem;color:var(--muted);margin-bottom:0.75rem">Page views — last 30 days</div>
+        <div id="traffic-chart" style="display:flex;align-items:flex-end;gap:3px;height:120px;overflow:hidden"></div>
+        <div id="traffic-labels" style="display:flex;gap:3px;margin-top:4px;overflow:hidden"></div>
+      </div>
+      <div id="traffic-empty" style="display:none" class="empty-state">No traffic data yet.</div>
+    </div>
+
     <!-- ── Log viewer ── -->
     <div id="view-logs" style="display:none">
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap">
@@ -403,6 +421,9 @@
       if (currentUser.role === "admin") {
         document.getElementById("btn-backups").style.display = "";
       }
+      if (currentUser.role === "admin") {
+        document.getElementById("btn-traffic").style.display = "";
+      }
       return true;
     }
 
@@ -431,7 +452,7 @@
     }
 
     // ── View helpers ───────────────────────────────────────
-    const ALL_VIEWS = ["view-posts","view-form","view-tags","view-users","view-user-form","view-images","view-logs","view-backups"];
+    const ALL_VIEWS = ["view-posts","view-form","view-tags","view-users","view-user-form","view-images","view-logs","view-backups","view-traffic"];
     function showView(id) {
       ALL_VIEWS.forEach(v => document.getElementById(v).style.display = v === id ? "block" : "none");
     }
@@ -1239,6 +1260,52 @@
     }
 
     // ── Log viewer ─────────────────────────────────────────
+    // ── Traffic ────────────────────────────────────────────
+    document.getElementById("btn-traffic").addEventListener("click", () => {
+      showView("view-traffic");
+      loadTraffic();
+    });
+    document.getElementById("btn-back-from-traffic").addEventListener("click", () => showView("view-posts"));
+    document.getElementById("btn-refresh-traffic").addEventListener("click", loadTraffic);
+
+    async function loadTraffic() {
+      const res = await apiFetch(`${API}/stats`, { headers: authHeaders() });
+      if (!res.ok) return;
+      const rows = await res.json();
+
+      document.getElementById("traffic-empty").style.display = rows.length ? "none" : "";
+
+      const total = rows.reduce((s, r) => s + Number(r.count), 0);
+      const today = rows.find(r => r.date === new Date().toISOString().slice(0, 10));
+      document.getElementById("traffic-summary").innerHTML = `
+        <div><div style="font-size:1.6rem;font-weight:700">${total.toLocaleString()}</div><div style="font-size:0.82rem;color:var(--muted)">Total views (30 days)</div></div>
+        <div><div style="font-size:1.6rem;font-weight:700">${today ? Number(today.count).toLocaleString() : 0}</div><div style="font-size:0.82rem;color:var(--muted)">Today</div></div>
+        <div><div style="font-size:1.6rem;font-weight:700">${rows.length}</div><div style="font-size:0.82rem;color:var(--muted)">Active days</div></div>
+      `;
+
+      // Fill missing days so we always show 30 bars
+      const days = [];
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        const key = d.toISOString().slice(0, 10);
+        const row = rows.find(r => r.date === key || r.date?.slice(0, 10) === key);
+        days.push({ date: key, count: row ? Number(row.count) : 0 });
+      }
+
+      const maxCount = Math.max(...days.map(d => d.count), 1);
+      const chart  = document.getElementById("traffic-chart");
+      const labels = document.getElementById("traffic-labels");
+      chart.innerHTML  = days.map(d => {
+        const pct = Math.round((d.count / maxCount) * 100);
+        const isToday = d.date === new Date().toISOString().slice(0, 10);
+        return `<div title="${d.date}: ${d.count} views" style="flex:1;background:${isToday ? "var(--accent)" : "var(--border)"};height:${Math.max(pct, d.count > 0 ? 2 : 0)}%;border-radius:2px 2px 0 0;min-width:0"></div>`;
+      }).join("");
+      labels.innerHTML = days.map((d, i) => {
+        const show = i === 0 || i === 14 || i === 29;
+        return `<div style="flex:1;font-size:0.6rem;color:var(--muted);text-align:center;min-width:0;overflow:hidden">${show ? d.date.slice(5) : ""}</div>`;
+      }).join("");
+    }
+
     let currentLogFilter = "all";
 
     document.getElementById("btn-logs").addEventListener("click", () => {
