@@ -510,6 +510,74 @@ The admin panel Logs view shows: summary stats (total requests, unique IPs, atta
 
 ---
 
+### 17. Database Backups
+
+Daily automated backups and an admin UI for on-demand backups were added.
+
+> *"ok lets do the database backup now"*
+
+A `scripts/backup.sh` cron script runs `pg_dump` inside the Docker container, gzips the output, and uploads it to S3 under a `backups/` prefix. Backups older than 30 days are pruned automatically. The deploy pipeline installs `cronie` and registers the cron job:
+
+```bash
+(crontab -l 2>/dev/null | grep -v "backup.sh"; echo "0 2 * * * $HOME/backup.sh >> $HOME/backup.log 2>&1") | crontab -
+```
+
+A `routes/backups.js` route was added with two endpoints:
+- `GET /api/backups` — lists recent backups from S3 with size and date
+- `POST /api/backups` — triggers an immediate `pg_dump` via `child_process.spawn`, gzips and uploads to S3
+
+The Dockerfile was updated to include `postgresql-client` so `pg_dump` is available inside the container. Restores are intentionally manual via SSH — too risky to automate via UI.
+
+The admin Backups view shows a "Backup Now" button, a list of recent backups, and restore instructions.
+
+---
+
+### 18. Image Usage Indicators and Delete Warnings
+
+Before deleting an image, the admin is warned if it is referenced in any posts.
+
+> *"lets do the image delete warning"*
+
+A `GET /api/images/usage?filename=...` endpoint queries both the `card_image` column and post `content` field using a `LIKE` search. A `GET /api/images/in-use` batch endpoint scans all posts in a single query and returns the set of referenced filenames.
+
+The admin image grid now shows a green **In use** badge on any image that is referenced in a post. The delete confirm dialog queries the usage endpoint and lists affected post titles before proceeding:
+
+```js
+message = `"${filename}" is referenced in ${posts.length} posts
+  (as card image or embedded in content) — deleting it will break them:
+  • Post Title 1
+  • Post Title 2`;
+```
+
+---
+
+### 19. Site Traffic Counter
+
+A daily page view counter was added, with a 30-day bar chart in the admin panel.
+
+> *"yes go ahead with the page hits"*
+
+A `site_hits (date DATE PRIMARY KEY, count INT)` table tracks daily hits. A public `POST /api/stats/hit` endpoint increments today's count using an upsert:
+
+```sql
+INSERT INTO site_hits (date, count) VALUES (CURRENT_DATE, 1)
+ON CONFLICT (date) DO UPDATE SET count = site_hits.count + 1
+```
+
+The home page and post pages fire this endpoint on load (fire-and-forget). The admin **Traffic** view shows total views, today's count, active days, and a CSS bar chart for the last 30 days with today's bar highlighted in the accent colour.
+
+---
+
+### 20. Admin UI Improvements
+
+Several quality-of-life improvements were made to the admin posts table.
+
+- **Author column** — the posts query now JOINs the `users` table to return `author_username`. The column is visible to admins only, so they can see who wrote each post for approval purposes.
+- **Compact status indicators** — the Status and Approved columns were replaced with "Pub" and "App" headers (with hover tooltips) showing a green ✓ or red ✗ instead of text labels.
+- **Row action menu** — five action buttons per row were replaced with a single ⋮ dropdown menu, significantly reducing horizontal space usage. The menu closes when clicking outside.
+
+---
+
 ## Typical Workflow
 
 The development process followed a consistent pattern:
@@ -534,8 +602,10 @@ blog/
 │   ├── posts.js           # CRUD, like, hit endpoints
 │   ├── tags.js
 │   ├── users.js
-│   ├── images.js          # Upload, proxy, delete
-│   └── logs.js            # Nginx log viewer (admin only)
+│   ├── images.js          # Upload, proxy, delete, usage, in-use
+│   ├── logs.js            # Nginx log viewer (admin only)
+│   ├── backups.js         # pg_dump to S3, list backups
+│   └── stats.js           # Daily site hit counter
 ├── lib/
 │   └── errors.js          # Production-safe error helper
 ├── middleware/
@@ -548,7 +618,10 @@ blog/
 │   ├── lightbox.js        # Custom pan/zoom lightbox
 │   └── style.css
 ├── migrations/
-│   └── 001_add_post_columns.sql
+│   ├── 001_add_post_columns.sql
+│   └── 002_site_hits.sql
+├── scripts/
+│   └── backup.sh          # Cron script: pg_dump → gzip → S3
 ├── init.sql               # DB schema (runs on fresh install)
 ├── Dockerfile
 ├── docker-compose.yml
