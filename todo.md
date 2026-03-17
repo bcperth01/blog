@@ -40,13 +40,12 @@ Note: URL encoding in content fields makes matching tricky and the content searc
 
 ---
 
-### Database backup
-The PostgreSQL data lives in a Docker volume on the EC2. If the instance is lost the data is gone.
-Options:
-- **Scheduled pg_dump to S3** — add a cron job on the EC2 that runs `pg_dump` daily and uploads the result to S3. Simple and reliable.
-- **AWS RDS** — migrate from the containerised Postgres to RDS for managed backups, snapshots, and multi-AZ. Higher cost but zero maintenance.
-
-Recommended starting point: daily `pg_dump` to S3 with a 30-day retention policy.
+### Database backup ✅
+- ✅ Daily `pg_dump` to S3 at 2am UTC via cron (`scripts/backup.sh`), 30-day retention
+- ✅ `POST /api/backups` — trigger a backup on demand from the admin panel
+- ✅ `GET /api/backups` — lists recent backups with size and date
+- ✅ Admin Backups view with "Backup Now" button, backup list, and restore instructions
+- Restore must be done manually via SSH (intentional — too risky to automate via UI)
 
 ---
 

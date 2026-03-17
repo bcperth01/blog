@@ -40,6 +40,7 @@ jobs:
             ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
             ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}
             PORT=3000
+            NODE_ENV=production
             ENVEOF
 
             # Install buildx system-wide so it works for all users including root
@@ -63,6 +64,12 @@ jobs:
               sudo systemctl enable fail2ban
               sudo systemctl start fail2ban
             fi
+
+            # Install AWS CLI and set up daily backup cron
+            sudo dnf install -y awscli
+            cp $HOME/app/scripts/backup.sh $HOME/backup.sh
+            chmod +x $HOME/backup.sh
+            (crontab -l 2>/dev/null | grep -v "backup.sh"; echo "0 2 * * * $HOME/backup.sh >> $HOME/backup.log 2>&1") | crontab -
 
             # Ensure Nginx is installed and running
             sudo dnf install -y nginx certbot python3-certbot-nginx

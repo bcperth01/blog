@@ -57,6 +57,7 @@
       <button class="btn btn-secondary admin-only" id="btn-manage-users" style="display:none">Manage Users</button>
       <button class="btn btn-secondary" id="btn-manage-images">Images</button>
       <button class="btn btn-secondary admin-only" id="btn-logs" style="display:none">Logs</button>
+      <button class="btn btn-secondary admin-only" id="btn-backups" style="display:none">Backups</button>
     </div>
 
     <!-- ── Posts table ── -->
@@ -219,6 +220,39 @@
       </div>
     </div>
 
+    <!-- ── Backup manager ── -->
+    <div id="view-backups" style="display:none">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap">
+        <h2 class="page-title" style="margin:0">Database Backups</h2>
+        <div style="flex:1"></div>
+        <button class="btn btn-primary" id="btn-run-backup">⬆ Backup Now</button>
+        <button class="btn btn-secondary" id="btn-refresh-backups">↻ Refresh</button>
+        <button class="btn btn-secondary" id="btn-back-from-backups">← Back to Posts</button>
+      </div>
+
+      <div class="form-card" style="padding:1rem 1.25rem;margin-bottom:1.25rem;font-size:0.88rem;color:var(--muted);line-height:1.6">
+        <strong style="color:var(--text)">Automatic backups</strong> run daily at 2am UTC via cron and are stored in S3 for 30 days.<br>
+        <strong style="color:var(--text)">To restore</strong> a backup, SSH into the EC2 and run:<br>
+        <code style="background:var(--border);padding:0.15rem 0.4rem;border-radius:4px;font-size:0.82rem">
+          aws s3 cp s3://BUCKET/backups/FILENAME.sql.gz - | gunzip | docker compose exec -T db psql -U bloguser blogdb
+        </code>
+      </div>
+
+      <div id="backup-status" style="display:none;margin-bottom:1rem;padding:0.75rem 1rem;border-radius:var(--radius);font-size:0.88rem"></div>
+
+      <div id="backup-loading" style="display:none;color:var(--muted);padding:1rem">Loading…</div>
+
+      <div class="form-card" style="padding:0;overflow:hidden">
+        <table class="admin-table" id="backup-table" style="display:none">
+          <thead>
+            <tr><th>Filename</th><th>Size</th><th>Created</th></tr>
+          </thead>
+          <tbody id="backup-tbody"></tbody>
+        </table>
+      </div>
+      <div id="backup-empty" style="display:none" class="empty-state">No backups found.</div>
+    </div>
+
     <!-- ── Log viewer ── -->
     <div id="view-logs" style="display:none">
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap">
@@ -366,6 +400,9 @@
       if (currentUser.role === "admin") {
         document.getElementById("btn-logs").style.display = "";
       }
+      if (currentUser.role === "admin") {
+        document.getElementById("btn-backups").style.display = "";
+      }
       return true;
     }
 
@@ -394,7 +431,7 @@
     }
 
     // ── View helpers ───────────────────────────────────────
-    const ALL_VIEWS = ["view-posts","view-form","view-tags","view-users","view-user-form","view-images","view-logs"];
+    const ALL_VIEWS = ["view-posts","view-form","view-tags","view-users","view-user-form","view-images","view-logs","view-backups"];
     function showView(id) {
       ALL_VIEWS.forEach(v => document.getElementById(v).style.display = v === id ? "block" : "none");
     }
@@ -1122,6 +1159,62 @@
     themeBtn.addEventListener("click", () => {
       applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
     });
+
+    // ── Backup manager ────────────────────────────────────
+    document.getElementById("btn-backups").addEventListener("click", () => {
+      showView("view-backups");
+      loadBackups();
+    });
+    document.getElementById("btn-back-from-backups").addEventListener("click", () => showView("view-posts"));
+    document.getElementById("btn-refresh-backups").addEventListener("click", loadBackups);
+
+    document.getElementById("btn-run-backup").addEventListener("click", async () => {
+      const btn    = document.getElementById("btn-run-backup");
+      const status = document.getElementById("backup-status");
+      btn.disabled = true;
+      btn.textContent = "Backing up…";
+      status.style.display = "none";
+
+      const res = await apiFetch(`${API}/backups`, { method: "POST", headers: authHeaders() });
+      btn.disabled = false;
+      btn.textContent = "⬆ Backup Now";
+
+      if (res.ok) {
+        const data = await res.json();
+        status.style.cssText = "display:block;background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:0.75rem 1rem;border-radius:var(--radius);font-size:0.88rem;margin-bottom:1rem";
+        status.textContent = `Backup complete: ${data.filename} (${formatBytes(data.size)})`;
+        loadBackups();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        status.style.cssText = "display:block;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;padding:0.75rem 1rem;border-radius:var(--radius);font-size:0.88rem;margin-bottom:1rem";
+        status.textContent = "Backup failed: " + (err.error || "unknown error");
+      }
+    });
+
+    async function loadBackups() {
+      document.getElementById("backup-loading").style.display = "block";
+      document.getElementById("backup-table").style.display   = "none";
+      document.getElementById("backup-empty").style.display   = "none";
+
+      const res     = await apiFetch(`${API}/backups`);
+      const backups = await res.json();
+      document.getElementById("backup-loading").style.display = "none";
+
+      if (!backups.length) {
+        document.getElementById("backup-empty").style.display = "block";
+        return;
+      }
+
+      const tbody = document.getElementById("backup-tbody");
+      tbody.innerHTML = backups.map(b => `
+        <tr>
+          <td><code style="font-size:0.82rem">${escHtml(b.filename)}</code></td>
+          <td>${formatBytes(b.size)}</td>
+          <td>${formatDate(b.lastModified)}</td>
+        </tr>
+      `).join("");
+      document.getElementById("backup-table").style.display = "table";
+    }
 
     // ── Log viewer ─────────────────────────────────────────
     let currentLogFilter = "all";
