@@ -15,6 +15,7 @@ const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const { s3, BUCKET } = require("../lib/s3");
 const { verifyToken, requireRole } = require("../middleware/auth");
 const serverError = require("../lib/errors");
+const db = require("../db");
 
 const SIGNED_URL_TTL = 3600; // 1 hour (for admin thumbnail display)
 const THUMB_SIZE     = 300;
@@ -92,6 +93,45 @@ router.get("/", verifyToken, requireRole("admin", "contributor"), async (req, re
     // Newest first
     images.sort((a, b) => new Date(b.lastModified) - new Date(a.lastModified));
     res.json(images);
+  } catch (err) {
+    return serverError(res, err);
+  }
+});
+
+// ── GET /api/images/in-use — returns array of filenames referenced in any post (batch check)
+router.get("/in-use", verifyToken, requireRole("admin", "contributor"), async (req, res) => {
+  try {
+    const { rows } = await db.query("SELECT card_image, content FROM posts");
+    const used = new Set();
+    // Match last path segment of any /api/images/proxy/.../filename URL
+    const proxyRx = /\/api\/images\/proxy\/[^/]+\/([^)"'\n]+)/g;
+    for (const { card_image, content } of rows) {
+      if (card_image) {
+        const m = String(card_image).match(/\/([^/]+)$/);
+        if (m) used.add(decodeURIComponent(m[1]));
+      }
+      if (content) {
+        for (const m of String(content).matchAll(proxyRx)) {
+          used.add(decodeURIComponent(m[1].trim()));
+        }
+      }
+    }
+    res.json([...used]);
+  } catch (err) {
+    return serverError(res, err);
+  }
+});
+
+// ── GET /api/images/usage?filename=... — check if an image is referenced in any posts
+router.get("/usage", verifyToken, requireRole("admin", "contributor"), async (req, res) => {
+  const { filename } = req.query;
+  if (!filename) return res.status(400).json({ error: "filename is required" });
+  try {
+    const { rows } = await db.query(
+      `SELECT DISTINCT title FROM posts WHERE card_image LIKE $1 OR content LIKE $1`,
+      [`%${filename}%`]
+    );
+    res.json(rows.map(r => r.title));
   } catch (err) {
     return serverError(res, err);
   }

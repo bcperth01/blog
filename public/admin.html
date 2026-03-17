@@ -509,7 +509,7 @@
       return new Promise(resolve => {
         const overlay = document.getElementById("confirm-overlay");
         document.getElementById("confirm-title").textContent   = title;
-        document.getElementById("confirm-message").textContent = message;
+        document.getElementById("confirm-message").innerHTML = message;
         document.getElementById("confirm-ok").textContent      = okText;
         document.getElementById("confirm-cancel").textContent  = cancelText;
         overlay.style.display = "flex";
@@ -1059,33 +1059,42 @@
       const query = document.getElementById("img-search").value.trim();
       grid.innerHTML = '<div style="color:var(--muted);padding:1rem">Loading…</div>';
       const url = query ? `${API}/images?q=${encodeURIComponent(query)}` : `${API}/images`;
-      const res = await apiFetch(url, { headers: authHeaders() });
+      const [res, inUseRes] = await Promise.all([
+        apiFetch(url, { headers: authHeaders() }),
+        apiFetch(`${API}/images/in-use`, { headers: authHeaders() }),
+      ]);
       if (!res.ok) { grid.innerHTML = '<div style="color:var(--danger);padding:1rem">Failed to load images.</div>'; return; }
       const images = await res.json();
-      renderImageGrid(images);
+      const inUse  = new Set(inUseRes.ok ? await inUseRes.json() : []);
+      renderImageGrid(images, inUse);
     }
 
-    function renderImageGrid(images) {
+    function renderImageGrid(images, inUse = new Set()) {
       const grid = document.getElementById("image-grid");
       if (!images.length) {
         grid.innerHTML = '<div class="empty-state">No images yet. Upload one to get started.</div>';
         return;
       }
-      grid.innerHTML = images.map(img => `
+      grid.innerHTML = images.map(img => {
+        const used = inUse.has(img.filename);
+        return `
         <div class="image-card">
           <div class="image-thumb-wrap" style="cursor:zoom-in" onclick="openLightbox('/api/images/proxy/${encodeURIComponent(img.key).replace(/%2F/g,'/')}', '${escHtml(img.filename)}')">
             <img class="image-thumb" src="${escHtml(img.thumbnailUrl)}" alt="${escHtml(img.filename)}" loading="lazy" />
           </div>
           <div class="image-card-info">
             <div class="image-name" title="${escHtml(img.filename)}">${escHtml(img.filename)}</div>
-            <div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.4rem">${formatBytes(img.size)}</div>
+            <div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.4rem;display:flex;align-items:center;gap:0.4rem">
+              ${formatBytes(img.size)}
+              ${used ? '<span style="background:#28a745;color:#fff;font-size:0.7rem;padding:0.1rem 0.4rem;border-radius:3px;line-height:1.4">In use</span>' : ''}
+            </div>
             <div class="image-card-actions">
               <button class="btn btn-secondary" style="padding:0.2rem 0.6rem;font-size:0.78rem" onclick="copyMarkdown('${escHtml(img.thumbProxyUrl)}', '${escHtml(img.filename)}')">Copy MD</button>
               <button class="btn btn-danger"    style="padding:0.2rem 0.6rem;font-size:0.78rem" onclick="deleteImage('${escHtml(img.key)}', '${escHtml(img.filename)}')" ${currentUser.role !== "admin" ? 'disabled title="Admin only"' : ""}>Delete</button>
             </div>
           </div>
         </div>
-      `).join("");
+      `}).join("");
     }
 
     function formatBytes(b) {
@@ -1123,7 +1132,20 @@
     });
 
     async function deleteImage(key, filename) {
-      if (!await showConfirm({ title: `Delete image?`, message: `"${filename}" will be permanently deleted from S3.`, okText: "Delete", cancelText: "Cancel" })) return;
+      let message = `"${escHtml(filename)}" will be permanently deleted from S3.`;
+      try {
+        const usageRes = await apiFetch(`${API}/images/usage?filename=${encodeURIComponent(filename)}`);
+        if (usageRes.ok) {
+          const posts = await usageRes.json();
+          if (posts.length) {
+            const list = posts.map(t => `&bull; ${escHtml(t)}`).join("<br>");
+            message = `"${escHtml(filename)}" is referenced in ${posts.length} post${posts.length > 1 ? "s" : ""} (as card image or embedded in content) — deleting it will break them:<br><br>${list}`;
+          } else {
+            message = `"${escHtml(filename)}" was not found in any posts. It will be permanently deleted from S3.`;
+          }
+        }
+      } catch (_) {}
+      if (!await showConfirm({ title: `Delete image?`, message, okText: "Delete", cancelText: "Cancel" })) return;
       const res = await apiFetch(`${API}/images/${key}`, { method: "DELETE", headers: authHeaders() });
       if (res.ok) { showToast("Image deleted."); await loadImages(); }
       else { const err = await res.json(); showToast("Error: " + err.error); }
