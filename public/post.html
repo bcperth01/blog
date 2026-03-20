@@ -117,11 +117,36 @@
         postBody.textContent = post.content || "";
       }
 
-      // Paragraphs containing only images get a flex-row class for horizontal layout
+      // Images in the same paragraph (consecutive lines, no blank line) → flex row
       postBody.querySelectorAll("p").forEach(p => {
         const nodes = [...p.childNodes].filter(n => !(n.nodeType === Node.TEXT_NODE && !n.textContent.trim()));
         if (nodes.length > 1 && nodes.every(n => n.nodeName === "IMG")) p.classList.add("img-row");
       });
+      // Consecutive single-image paragraphs (blank line between them) → flex row
+      const isSingleImageP = p => {
+        const nodes = [...p.childNodes].filter(n => !(n.nodeType === Node.TEXT_NODE && !n.textContent.trim()));
+        return nodes.length === 1 && nodes[0].nodeName === "IMG";
+      };
+      const allP = [...postBody.querySelectorAll("p")];
+      let i = 0;
+      while (i < allP.length) {
+        if (isSingleImageP(allP[i])) {
+          let j = i + 1;
+          while (j < allP.length && isSingleImageP(allP[j]) && allP[j].previousElementSibling === allP[j - 1]) j++;
+          if (j > i + 1) {
+            const row = document.createElement("div");
+            row.className = "img-row";
+            allP[i].parentNode.insertBefore(row, allP[i]);
+            for (let k = i; k < j; k++) {
+              row.appendChild(allP[k].firstElementChild);
+              allP[k].remove();
+            }
+          }
+          i = j;
+        } else {
+          i++;
+        }
+      }
 
       // Wire up lightbox — click any image to open full-size in the lightbox
       postBody.querySelectorAll("img").forEach(img => {
