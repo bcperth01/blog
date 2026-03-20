@@ -2,13 +2,13 @@ const express  = require("express");
 const router   = express.Router();
 const multer   = require("multer");
 const sharp    = require("sharp");
-const crypto   = require("crypto");
 const path     = require("path");
 const {
   ListObjectsV2Command,
   PutObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
 } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
@@ -31,6 +31,29 @@ const upload = multer({
     cb(null, file.mimetype.startsWith("image/"));
   },
 });
+
+// Helper: check if an S3 key exists
+async function keyExists(key) {
+  try {
+    await s3.send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }));
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Helper: find a free basename, suffixing -1, -2 etc if needed
+async function freeBasename(name) {
+  const ext  = path.extname(name).toLowerCase();
+  const stem = path.basename(name, ext).replace(/[^\w\s.-]/g, "").trim();
+  let candidate = stem + ext;
+  let i = 1;
+  while (await keyExists(ORIG_PREFIX + candidate)) {
+    candidate = `${stem}-${i}${ext}`;
+    i++;
+  }
+  return candidate;
+}
 
 // Helper: get presigned URL for a given S3 key
 function signedUrl(key) {
@@ -168,9 +191,7 @@ router.get("/proxy/*", async (req, res) => {
 router.post("/", verifyToken, requireRole("admin", "contributor"), upload.single("image"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No image file provided" });
 
-  const ext      = path.extname(req.file.originalname).toLowerCase() || ".jpg";
-  const uuid     = crypto.randomUUID();
-  const basename = uuid + ext;
+  const basename = await freeBasename(req.file.originalname || "image.jpg");
   const origKey  = ORIG_PREFIX  + basename;
   const thumbKey = THUMB_PREFIX + basename;
   const cardKey  = CARD_PREFIX  + basename;
