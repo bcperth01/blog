@@ -700,7 +700,7 @@
       const images = await res.json();
       if (!images.length) { grid.innerHTML = '<div class="empty-state">No images found.</div>'; return; }
       grid.innerHTML = images.map(img => `
-        <div class="image-card" style="cursor:pointer" onclick="pickerSelect('${escHtml(img.thumbProxyUrl)}', '${escHtml(img.filename)}')">
+        <div class="image-card" style="cursor:pointer" onclick="pickerSelect('${escHtml(img.cardProxyUrl)}', '${escHtml(img.thumbProxyUrl)}', '${escHtml(img.filename)}')">
           <div class="image-thumb-wrap">
             <img class="image-thumb" src="${escHtml(img.thumbnailUrl)}" alt="${escHtml(img.filename)}" loading="lazy" />
           </div>
@@ -711,11 +711,11 @@
       `).join("");
     }
 
-    function pickerSelect(thumbProxyUrl, filename) {
+    function pickerSelect(cardProxyUrl, thumbProxyUrl, filename) {
       if (pickerMode === "card") {
         setCardImage(thumbProxyUrl, filename);
       } else {
-        insertImage(thumbProxyUrl, filename);
+        insertImage(cardProxyUrl, filename);
       }
     }
 
@@ -770,7 +770,7 @@
         const content = textarea.value;
         if (res.ok) {
           const img = await res.json();
-          textarea.value = content.replace(placeholder, `![${file.name}](${img.thumbProxyUrl})`);
+          textarea.value = content.replace(placeholder, `![${file.name}](${img.cardProxyUrl})`);
           showToast("Image uploaded.");
         } else {
           textarea.value = content.replace(placeholder, "");
@@ -1129,7 +1129,7 @@
               ${used ? '<span style="background:#28a745;color:#fff;font-size:0.7rem;padding:0.1rem 0.4rem;border-radius:3px;line-height:1.4">In use</span>' : ''}
             </div>
             <div class="image-card-actions">
-              <button class="btn btn-secondary" style="padding:0.2rem 0.6rem;font-size:0.78rem" onclick="copyMarkdown('${escHtml(img.thumbProxyUrl)}', '${escHtml(img.filename)}')">Copy MD</button>
+              <button class="btn btn-secondary" style="padding:0.2rem 0.6rem;font-size:0.78rem" onclick="copyMarkdown('${escHtml(img.cardProxyUrl)}', '${escHtml(img.filename)}')">Copy MD</button>
               <button class="btn btn-danger"    style="padding:0.2rem 0.6rem;font-size:0.78rem" onclick="deleteImage('${escHtml(img.key)}', '${escHtml(img.filename)}')" ${currentUser.role !== "admin" ? 'disabled title="Admin only"' : ""}>Delete</button>
             </div>
           </div>
