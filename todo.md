@@ -53,6 +53,12 @@
 
 ---
 
+### Four in a Row — replace AI engine with custom C algorithm
+- User has a Connect Four algorithm written in C
+- Translate it to JavaScript and replace the current minimax implementation in `public/four-in-a-row.html`
+
+---
+
 ### Log viewer for hack attempts ✅
 - ✅ Admin log viewer added — parses `/var/log/nginx/access.log` via `GET /api/logs`
 - ✅ Filters: All, Suspicious (attack paths + 429/5xx), 404s, Banned IPs

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Games — Brendan's Blog</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <a class="site-title" href="/">Brendan's Blog</a>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/games.html" class="active">Games</a>
+        <a href="/admin.html" id="nav-admin" style="display:none">Admin</a>
+        <a href="/login.html" id="nav-login">Login</a>
+      </nav>
+      <button id="theme-toggle" title="Toggle dark mode">🌙</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <h1 class="page-title">Games</h1>
+    <div class="post-list" style="max-width:600px">
+      <a href="/four-in-a-row.html" class="post-card" style="text-decoration:none">
+        <div style="font-size:3rem;text-align:center;padding:1rem 0">🔴🟡</div>
+        <div class="card-body">
+          <h2 style="margin-bottom:0.3rem">Four in a Row</h2>
+          <p class="excerpt">Classic strategy game — drop discs to connect four in a row before the computer does.</p>
+        </div>
+      </a>
+    </div>
+  </main>
+
+  <script>
+    // Theme
+    (function() {
+      const saved = localStorage.getItem("theme");
+      if (saved) document.documentElement.setAttribute("data-theme", saved);
+      else if (window.matchMedia("(prefers-color-scheme: dark)").matches)
+        document.documentElement.setAttribute("data-theme", "dark");
+    })();
+    const btn = document.getElementById("theme-toggle");
+    const current = document.documentElement.getAttribute("data-theme") || "light";
+    btn.textContent = current === "dark" ? "☀️" : "🌙";
+    btn.addEventListener("click", () => {
+      const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", next);
+      localStorage.setItem("theme", next);
+      btn.textContent = next === "dark" ? "☀️" : "🌙";
+    });
+    // Show admin link if logged in
+    if (localStorage.getItem("authToken")) {
+      document.getElementById("nav-admin").style.display = "";
+      document.getElementById("nav-login").style.display = "none";
+    }
+  </script>
+</body>
+</html>

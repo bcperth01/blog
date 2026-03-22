@@ -7,16 +7,17 @@ This manual covers how to use the blog as a **reader**, a **contributor**, and a
 ## Table of Contents
 
 1. [Reading the Blog (Public)](#1-reading-the-blog-public)
-2. [Logging In](#2-logging-in)
-3. [Contributors — Writing Posts](#3-contributors--writing-posts)
-4. [Contributors — Managing Images](#4-contributors--managing-images)
-5. [Admins — Managing Posts](#5-admins--managing-posts)
-6. [Admins — Managing Users](#6-admins--managing-users)
-7. [Admins — Managing Tags](#7-admins--managing-tags)
-8. [Admins — Images](#8-admins--images)
-9. [Admins — Traffic](#9-admins--traffic)
-10. [Admins — Backups](#10-admins--backups)
-11. [Admins — Logs](#11-admins--logs)
+2. [Games](#2-games)
+3. [Logging In](#3-logging-in)
+4. [Contributors — Writing Posts](#4-contributors--writing-posts)
+5. [Contributors — Managing Images](#5-contributors--managing-images)
+6. [Admins — Managing Posts](#6-admins--managing-posts)
+7. [Admins — Managing Users](#7-admins--managing-users)
+8. [Admins — Managing Tags](#8-admins--managing-tags)
+9. [Admins — Images](#9-admins--images)
+10. [Admins — Traffic](#10-admins--traffic)
+11. [Admins — Backups](#11-admins--backups)
+12. [Admins — Logs](#12-admins--logs)
 
 ---
 
@@ -47,7 +48,22 @@ Click the moon/sun icon in the top-right corner to toggle between light and dark
 
 ---
 
-## 2. Logging In
+## 2. Games
+
+Click **Games** in the navigation bar to open the Games page. No login is required.
+
+### Four in a Row
+A classic strategy game played on a 7×6 grid. You play as **red**, the computer plays as **yellow**.
+
+- Click the **▼ arrow** above a column (or anywhere within the column) to drop your disc.
+- The first player to connect four discs in a row — horizontally, vertically, or diagonally — wins.
+- The winning discs will pulse to highlight the winning line.
+- Click **New Game** to reset the board at any time.
+- Use the **Difficulty** selector to choose Easy, Medium, or Hard before starting a new game.
+
+---
+
+## 3. Logging In
 
 Navigate to `/login.html` or click **Admin** in the navigation bar.
 
@@ -59,7 +75,7 @@ To log out, click **Logout** in the top-right corner of the admin panel.
 
 ---
 
-## 3. Contributors — Writing Posts
+## 4. Contributors — Writing Posts
 
 ### Creating a New Post
 1. Click **+ New Post** in the admin panel toolbar.
@@ -88,6 +104,24 @@ The content field accepts standard Markdown:
 
 To embed an image from the image library, go to **Images**, find the image, and click **Copy MD** — this copies the correct Markdown snippet to your clipboard. Paste it into the content field.
 
+### Markdown Right-Click Menu
+Right-clicking inside the content editor opens a formatting menu with shortcuts for common Markdown syntax:
+
+| Menu item | Inserts |
+|---|---|
+| **Bold** | `**selected text**` |
+| **Italic** | `*selected text*` |
+| **Inline code** | `` `selected text` `` |
+| **Code block** | ` ```\nselected text\n``` ` |
+| **Heading** | `## selected text` |
+| **Bullet list** | `- selected text` |
+| **Link** | `[selected text](url)` |
+| **Image** | `![alt](url)` |
+| **Blockquote** | `> selected text` |
+| **Horizontal rule** | `---` |
+
+If you have text selected when you right-click, the menu will wrap or prefix that selection. Otherwise the syntax is inserted at the cursor position.
+
 ### Previewing a Post
 Click **👁 Preview** above the content area to toggle a rendered preview of your Markdown. Click again to return to the editor.
 
@@ -102,7 +136,7 @@ Use the **⋮** menu → **Delete**. You will be asked to confirm. Only admins a
 
 ---
 
-## 4. Contributors — Managing Images
+## 5. Contributors — Managing Images
 
 Click **Images** in the admin toolbar to open the image library.
 
@@ -123,7 +157,7 @@ Images that are currently referenced in one or more posts show a green **In use*
 
 ---
 
-## 5. Admins — Managing Posts
+## 6. Admins — Managing Posts
 
 Admins see all posts from all users in the posts table. The table columns are:
 
@@ -144,7 +178,7 @@ Use the **⋮** menu → **Approve** or **Unapprove**. Only approved posts are v
 
 ---
 
-## 6. Admins — Managing Users
+## 7. Admins — Managing Users
 
 Click **Manage Users** in the admin toolbar (admin only).
 
@@ -167,7 +201,7 @@ Click **Delete** next to the user. If the user has posts, those posts will remai
 
 ---
 
-## 7. Admins — Managing Tags
+## 8. Admins — Managing Tags
 
 Click **Manage Tags** in the admin toolbar.
 
@@ -179,7 +213,7 @@ Click **Delete** next to the tag. The tag will be removed from all posts that us
 
 ---
 
-## 8. Admins — Images
+## 9. Admins — Images
 
 Admins have full access to the image library including the ability to delete images.
 
@@ -193,7 +227,7 @@ Click **Delete** in the dialog to confirm, or **Cancel** to abort.
 
 ---
 
-## 9. Admins — Traffic
+## 10. Admins — Traffic
 
 Click **Traffic** in the admin toolbar (admin only) to view site page view statistics.
 
@@ -209,7 +243,7 @@ Click **↻ Refresh** to reload the data.
 
 ---
 
-## 10. Admins — Backups
+## 11. Admins — Backups
 
 Click **Backups** in the admin toolbar (admin only) to manage database backups.
 
@@ -233,7 +267,7 @@ Replace `BUCKET` and `FILENAME` with the values shown in the backup list.
 
 ---
 
-## 11. Admins — Logs
+## 12. Admins — Logs
 
 Click **Logs** in the admin toolbar (admin only) to view the Nginx access log.
 
