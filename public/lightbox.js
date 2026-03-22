@@ -70,7 +70,7 @@
 
   // ── Keyboard ───────────────────────────────────────────────
   document.addEventListener("keydown", e => {
-    if (overlay.style.display === "none" || !overlay.style.display === "") return;
+    if (overlay.style.display !== "flex") return;
     if (e.key === "Escape")               close();
     if (e.key === "+" || e.key === "=")   zoomBy(1.3);
     if (e.key === "-")                    zoomBy(1 / 1.3);

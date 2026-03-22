@@ -329,6 +329,15 @@ nav a:hover, nav a.active { color: var(--accent); text-decoration: none; }
 .admin-table td { padding: 0.65rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .admin-table tr:last-child td { border-bottom: none; }
 .admin-table .actions { display: flex; gap: 0.5rem; }
+.md-context-menu { display: none; position: fixed; z-index: 300; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 4px 16px rgba(0,0,0,0.15); min-width: 180px; overflow: hidden; }
+[data-theme="dark"] .md-context-menu { background: #2a2d3d; }
+.md-context-menu.open { display: block; }
+.md-context-menu button { display: block; width: 100%; text-align: left; padding: 0.45rem 0.85rem; font-size: 0.85rem; background: none; border: none; border-bottom: 1px solid var(--border); cursor: pointer; color: var(--text); }
+.md-context-menu button:last-child { border-bottom: none; }
+.md-context-menu button:hover { background: var(--border); }
+.md-context-menu .md-menu-sep { border-bottom: 2px solid var(--border); }
+.md-context-menu .md-menu-label { display: block; padding: 0.25rem 0.85rem; font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; background: none; border: none; cursor: default; }
+.md-context-menu .md-menu-label:hover { background: none; }
 .row-menu { position: relative; display: inline-block; }
 .row-menu-btn { background: none; border: 1px solid var(--border); border-radius: var(--radius); padding: 0.2rem 0.55rem; font-size: 1.1rem; cursor: pointer; color: var(--text); line-height: 1; }
 .row-menu-btn:hover { background: var(--border); }

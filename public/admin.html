@@ -332,6 +332,27 @@
   </main>
 
   <!-- ── Confirm dialog ── -->
+  <!-- ── Markdown context menu ── -->
+  <div id="md-context-menu" class="md-context-menu">
+    <span class="md-menu-label">Format</span>
+    <button data-md="bold">Bold  <small style="float:right;color:var(--muted)">**text**</small></button>
+    <button data-md="italic">Italic  <small style="float:right;color:var(--muted)">*text*</small></button>
+    <button data-md="strikethrough">Strikethrough  <small style="float:right;color:var(--muted)">~~text~~</small></button>
+    <button data-md="code">Inline code  <small style="float:right;color:var(--muted)">`code`</small></button>
+    <span class="md-menu-label md-menu-sep">Block</span>
+    <button data-md="codeblock">Code block</button>
+    <button data-md="blockquote">Blockquote  <small style="float:right;color:var(--muted)">&gt; text</small></button>
+    <button data-md="h1">Heading 1  <small style="float:right;color:var(--muted)"># </small></button>
+    <button data-md="h2">Heading 2  <small style="float:right;color:var(--muted)">## </small></button>
+    <button data-md="h3">Heading 3  <small style="float:right;color:var(--muted)">### </small></button>
+    <span class="md-menu-label md-menu-sep">List</span>
+    <button data-md="bullet">Bullet point  <small style="float:right;color:var(--muted)">- </small></button>
+    <button data-md="numbered">Numbered list  <small style="float:right;color:var(--muted)">1. </small></button>
+    <span class="md-menu-label md-menu-sep">Insert</span>
+    <button data-md="link">Link  <small style="float:right;color:var(--muted)">[text](url)</small></button>
+    <button data-md="hr">Horizontal rule  <small style="float:right;color:var(--muted)">---</small></button>
+  </div>
+
   <div id="confirm-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:300;display:none;align-items:center;justify-content:center">
     <div style="background:var(--surface);border-radius:var(--radius);padding:2rem;max-width:420px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
       <h3 id="confirm-title" style="margin:0 0 0.6rem"></h3>
@@ -745,6 +766,69 @@
       textarea.focus();
       showToast("Image inserted.");
     }
+
+    // ── Markdown context menu ──────────────────────────────
+    (function () {
+      const menu     = document.getElementById("md-context-menu");
+      const textarea = document.getElementById("input-content");
+
+      function closeMenu() { menu.classList.remove("open"); }
+
+      textarea.addEventListener("contextmenu", e => {
+        e.preventDefault();
+        menu.style.left = e.clientX + "px";
+        menu.style.top  = e.clientY + "px";
+        menu.classList.add("open");
+        // Nudge left/down if menu would overflow viewport
+        requestAnimationFrame(() => {
+          const r = menu.getBoundingClientRect();
+          if (r.right  > window.innerWidth)  menu.style.left = (e.clientX - r.width)  + "px";
+          if (r.bottom > window.innerHeight) menu.style.top  = (e.clientY - r.height) + "px";
+        });
+      });
+
+      document.addEventListener("click",       closeMenu);
+      document.addEventListener("keydown", e => { if (e.key === "Escape") closeMenu(); });
+
+      menu.querySelectorAll("button[data-md]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          closeMenu();
+          applyMdFormat(btn.dataset.md);
+          textarea.focus();
+        });
+      });
+
+      function applyMdFormat(type) {
+        const start = textarea.selectionStart;
+        const end   = textarea.selectionEnd;
+        const sel   = textarea.value.slice(start, end);
+        const before = textarea.value.slice(0, start);
+        const after  = textarea.value.slice(end);
+
+        let insert = "", cursorOffset = 0;
+
+        switch (type) {
+          case "bold":          insert = `**${sel || "bold text"}**`;     cursorOffset = sel ? insert.length : 2;   break;
+          case "italic":        insert = `*${sel || "italic text"}*`;     cursorOffset = sel ? insert.length : 1;   break;
+          case "strikethrough": insert = `~~${sel || "text"}~~`;          cursorOffset = sel ? insert.length : 2;   break;
+          case "code":          insert = `\`${sel || "code"}\``;          cursorOffset = sel ? insert.length : 1;   break;
+          case "codeblock":     insert = `\`\`\`\n${sel || "code"}\n\`\`\``; cursorOffset = sel ? insert.length : 4; break;
+          case "blockquote":    insert = `> ${sel || "quote"}`;           cursorOffset = sel ? insert.length : 2;   break;
+          case "h1":            insert = `# ${sel || "Heading 1"}`;       cursorOffset = sel ? insert.length : 2;   break;
+          case "h2":            insert = `## ${sel || "Heading 2"}`;      cursorOffset = sel ? insert.length : 3;   break;
+          case "h3":            insert = `### ${sel || "Heading 3"}`;     cursorOffset = sel ? insert.length : 4;   break;
+          case "bullet":        insert = `- ${sel || "item"}`;            cursorOffset = sel ? insert.length : 2;   break;
+          case "numbered":      insert = `1. ${sel || "item"}`;           cursorOffset = sel ? insert.length : 3;   break;
+          case "link":          insert = `[${sel || "link text"}](url)`;  cursorOffset = sel ? insert.length - 1 : insert.length - 4; break;
+          case "hr":            insert = `\n---\n`;                       cursorOffset = insert.length;             break;
+          default: return;
+        }
+
+        textarea.value = before + insert + after;
+        const pos = start + cursorOffset;
+        textarea.setSelectionRange(pos, pos);
+      }
+    })();
 
     // ── Paste image into content area ──────────────────────
     document.getElementById("input-content").addEventListener("paste", async (e) => {
