@@ -113,7 +113,7 @@
       list.innerHTML = posts.map(p => `
         <article class="post-card">
           <div class="card-image">${p.card_image ? `<img src="${escHtml(p.card_image)}" alt="${escHtml(p.title)}" loading="lazy" />` : ""}</div>
-          <h2><a href="/post.html?slug=${p.slug}">${escHtml(p.title)}</a></h2>
+          <h2><a href="/posts/${p.slug}">${escHtml(p.title)}</a></h2>
           <div class="meta">${formatDate(p.created_at)}</div>
           ${p.excerpt ? `<p class="excerpt">${escHtml(p.excerpt)}</p>` : ""}
           <div class="card-footer">
@@ -124,7 +124,7 @@
               <button class="like-btn" onclick="likePost(${p.id}, this)" title="Like this post">♥ <span>${p.likes}</span></button>
               <span title="Views" style="font-size:1.1rem;color:var(--muted)">👁 ${p.hits}</span>
             </div>
-            <a class="btn btn-secondary" href="/post.html?slug=${p.slug}" style="padding:0.3rem 0.8rem;font-size:0.82rem">Read →</a>
+            <a class="btn btn-secondary" href="/posts/${p.slug}" style="padding:0.3rem 0.8rem;font-size:0.82rem">Read →</a>
           </div>
         </article>
       `).join("");

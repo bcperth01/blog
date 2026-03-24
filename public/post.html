@@ -87,7 +87,9 @@
     }
 
     async function load() {
-      const slug = new URLSearchParams(location.search).get("slug");
+      const slug = location.pathname.startsWith("/posts/")
+        ? decodeURIComponent(location.pathname.slice("/posts/".length))
+        : new URLSearchParams(location.search).get("slug");
       if (!slug) { showNotFound(); return; }
 
       const res = await fetch(`${API}/posts/${slug}`);
@@ -100,7 +102,7 @@
 
       // SEO meta tags
       const desc = post.excerpt || "";
-      const canonical = window.location.origin + "/post.html?slug=" + post.slug;
+      const canonical = window.location.origin + "/posts/" + post.slug;
       const ogImage = post.card_image ? window.location.origin + post.card_image : "";
       document.querySelector("meta[name='description']").setAttribute("content", desc);
       document.querySelector("meta[property='og:title']").setAttribute("content", post.title + " — Brendan's Blog");

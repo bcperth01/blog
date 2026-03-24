@@ -58,6 +58,17 @@ app.use("/api/logs",    logsRouter);
 app.use("/api/backups", backupsRouter);
 app.use("/api/stats",   statsRouter);
 
+// Redirect old /post.html?slug= URLs to clean /posts/:slug URLs (301 preserves SEO ranking)
+app.get("/post.html", (req, res) => {
+  const slug = req.query.slug;
+  return res.redirect(301, slug ? `/posts/${encodeURIComponent(slug)}` : "/");
+});
+
+// Serve post.html for clean post URLs
+app.get("/posts/:slug", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "post.html"));
+});
+
 // Sitemap
 app.get("/sitemap.xml", async (req, res) => {
   try {
@@ -67,7 +78,7 @@ app.get("/sitemap.xml", async (req, res) => {
     const base = process.env.SITE_URL || "https://blog.bcperth.com";
     const postUrls = rows.map(p => {
       const lastmod = (p.updated_at || p.created_at).toISOString().split("T")[0];
-      return `  <url><loc>${base}/post.html?slug=${p.slug}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>`;
+      return `  <url><loc>${base}/posts/${p.slug}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>`;
     }).join("\n");
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
