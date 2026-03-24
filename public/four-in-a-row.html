@@ -112,6 +112,15 @@
     .cell.red  { background: #e04040; box-shadow: inset 0 3px 8px rgba(0,0,0,0.2), 0 0 8px rgba(224,64,64,0.35); }
     .cell.yellow { background: #f5c518; box-shadow: inset 0 3px 8px rgba(0,0,0,0.2), 0 0 8px rgba(245,197,24,0.35); }
 
+    /* CPU last move flash */
+    .cell.yellow.cpu-last {
+      animation: flash-cpu 0.25s ease-in-out 3 alternate;
+    }
+    @keyframes flash-cpu {
+      from { background: #f5c518; box-shadow: inset 0 3px 8px rgba(0,0,0,0.2), 0 0 6px rgba(245,197,24,0.4); }
+      to   { background: #fff5a0; box-shadow: inset 0 3px 8px rgba(0,0,0,0.1), 0 0 32px 8px rgba(255,230,80,1); }
+    }
+
     /* Winning cells pulse */
     .cell.red.win-cell {
       animation: pulse-red 0.5s ease-in-out infinite alternate;
@@ -253,10 +262,11 @@
     }
 
     // ─── Rendering ────────────────────────────────────────────
-    function renderBoard(winCells) {
+    function renderBoard(winCells, lastMove) {
       const boardEl = document.getElementById("board");
       boardEl.innerHTML = "";
       const winSet = winCells ? new Set(winCells.map(([r, c]) => r * COLS + c)) : new Set();
+      const lastKey = lastMove ? lastMove[0] * COLS + lastMove[1] : -1;
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
           const cell = document.createElement("div");
@@ -265,6 +275,7 @@
           if (v === HUMAN)  { cell.classList.add("red"); }
           if (v === CPU)    { cell.classList.add("yellow"); }
           if (winSet.has(r * COLS + c)) cell.classList.add("win-cell");
+          if (r * COLS + c === lastKey) cell.classList.add("cpu-last");
           boardEl.appendChild(cell);
         }
       }
@@ -393,21 +404,21 @@
       const winCells = checkWin(board, CPU);
       cpuThinking = false;
       if (winCells) {
-        renderBoard(winCells);
+        renderBoard(winCells, [row, col]);
         setStatus("win", CPU);
         gameOver = true;
         document.getElementById("board-area").classList.add("game-over");
         return;
       }
       if (isBoardFull(board)) {
-        renderBoard();
+        renderBoard(null, [row, col]);
         setStatus("draw");
         gameOver = true;
         document.getElementById("board-area").classList.add("game-over");
         return;
       }
       currentPlayer = HUMAN;
-      renderBoard();
+      renderBoard(null, [row, col]);
       setStatus("your-turn");
     }
 
