@@ -440,6 +440,8 @@
       if (!res.ok) { logout(); return false; }
       currentUser = await res.json();
       document.getElementById("nav-username").textContent = currentUser.username;
+      document.querySelector("h1.page-title").textContent = currentUser.role === "admin" ? "Admin" : "Contributor";
+      document.title = (currentUser.role === "admin" ? "Admin" : "Contributor") + " — Brendan's Blog";
       if (currentUser.role === "admin") {
         document.getElementById("btn-manage-users").style.display = "";
         document.getElementById("th-author").style.display = "";
