@@ -273,6 +273,7 @@ nav a:hover, nav a.active { color: var(--accent); text-decoration: none; }
   font-size: 0.95rem;
   font-family: inherit;
   background: var(--bg);
+  color: var(--text);
   resize: vertical;
 }
 
