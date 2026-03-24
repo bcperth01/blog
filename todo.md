@@ -17,12 +17,20 @@
 
 ---
 
-### SEO improvements ✅
+### SEO improvements
 - ✅ Add `<meta name="description">` to each post page using the post excerpt
 - ✅ Add `<meta property="og:*">` Open Graph tags (title, description, image) for social sharing previews
 - ✅ Add a `sitemap.xml` endpoint generated dynamically from published posts
 - ✅ Add `<link rel="canonical">` to post pages
 - ✅ Ensure post slugs are human-readable (changed timestamp suffix to base-36, e.g. `-lk73ds0`)
+- ✅ Add `robots.txt` — blocks /admin.html, /login.html, /api/; points to sitemap
+- ✅ Add `noindex, nofollow` to admin.html and login.html
+- ✅ Add Twitter Card meta tags to index.html and post.html
+- ✅ Add JSON-LD `BlogPosting` schema to post.html
+- ✅ Clean post URLs — `/posts/:slug` replacing `/post.html?slug=`; 301 redirect from old URLs
+- ✅ Sitemap submitted to Google Search Console (auto-verified via Google Domains)
+- Add favicon — generate at favicon.io, add to `public/`, wire up `<link rel="icon">` in all pages
+- Add default OG image for home page — upload via admin image manager, add URL to `og:image` in index.html
 
 ---
 
