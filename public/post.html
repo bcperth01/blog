@@ -11,7 +11,12 @@
   <meta property="og:description" content="" />
   <meta property="og:image" content="" />
   <meta property="og:url" content="" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="" />
+  <meta name="twitter:description" content="" />
+  <meta name="twitter:image" content="" />
   <link rel="canonical" href="" />
+  <script type="application/ld+json" id="ld-json">{}</script>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -103,6 +108,23 @@
       document.querySelector("meta[property='og:url']").setAttribute("content", canonical);
       document.querySelector("meta[property='og:image']").setAttribute("content", ogImage);
       document.querySelector("link[rel='canonical']").setAttribute("href", canonical);
+      // Twitter Card
+      document.querySelector("meta[name='twitter:title']").setAttribute("content", post.title + " — Brendan's Blog");
+      document.querySelector("meta[name='twitter:description']").setAttribute("content", desc);
+      document.querySelector("meta[name='twitter:image']").setAttribute("content", ogImage);
+      // JSON-LD Article schema
+      document.getElementById("ld-json").textContent = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "headline": post.title,
+        "description": desc,
+        "image": ogImage || undefined,
+        "datePublished": post.created_at,
+        "dateModified": post.updated_at || post.created_at,
+        "url": canonical,
+        "author": { "@type": "Person", "name": post.author_username || "Brendan" },
+        "publisher": { "@type": "Organization", "name": "Brendan's Blog", "url": window.location.origin }
+      });
 
       document.getElementById("post-title").textContent = post.title;
       document.getElementById("post-date").textContent = formatDate(post.created_at);
