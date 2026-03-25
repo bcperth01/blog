@@ -71,7 +71,8 @@ jobs:
             sudo systemctl start crond
             cp $HOME/app/scripts/backup.sh $HOME/backup.sh
             chmod +x $HOME/backup.sh
-            (crontab -l 2>/dev/null | grep -v "backup.sh"; echo "0 2 * * * $HOME/backup.sh >> $HOME/backup.log 2>&1") | crontab -
+            echo "0 2 * * * ec2-user $HOME/backup.sh >> $HOME/backup.log 2>&1" | sudo tee /etc/cron.d/blog-backup > /dev/null
+            sudo chmod 644 /etc/cron.d/blog-backup
 
             # Ensure Nginx is installed and running
             sudo dnf install -y nginx certbot python3-certbot-nginx
