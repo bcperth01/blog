@@ -2,6 +2,12 @@
 
 ## Future Considerations
 
+### Markdown links open in new tab
+- Configure marked.js with a custom link renderer so external links automatically get `target="_blank" rel="noopener"`
+- Raw HTML `<a target="_blank">` already works as a workaround in the meantime
+
+---
+
 ### Check image usage before deletion ✅
 - ✅ Green "In use" badge shown on image cards referenced in any post
 - ✅ Delete confirm dialog lists affected post titles (searches both `card_image` and `content`)
