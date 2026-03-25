@@ -8,7 +8,7 @@ const serverError = require("../lib/errors");
 
 const SECRET = process.env.JWT_SECRET || "blog-dev-secret-change-in-production";
 
-// POST /api/auth/login
+// POST /api/auth/login -
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
