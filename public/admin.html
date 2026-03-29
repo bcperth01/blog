@@ -357,6 +357,7 @@
     <button data-md="numbered">Numbered list  <small style="float:right;color:var(--muted)">1. </small></button>
     <span class="md-menu-label md-menu-sep">Insert</span>
     <button data-md="link">Link  <small style="float:right;color:var(--muted)">[text](url)</small></button>
+    <button data-md="table">Table  <small style="float:right;color:var(--muted)">| col |</small></button>
     <button data-md="hr">Horizontal rule  <small style="float:right;color:var(--muted)">---</small></button>
   </div>
 
@@ -843,6 +844,7 @@
           case "bullet":        insert = `- ${sel || "item"}`;            cursorOffset = sel ? insert.length : 2;   break;
           case "numbered":      insert = `1. ${sel || "item"}`;           cursorOffset = sel ? insert.length : 3;   break;
           case "link":          insert = `[${sel || "link text"}](url)`;  cursorOffset = sel ? insert.length - 1 : insert.length - 4; break;
+          case "table":         insert = `| Column 1 | Column 2 | Column 3 |\n|---|---|---|\n| Cell | Cell | Cell |\n| Cell | Cell | Cell |`; cursorOffset = 2; break;
           case "hr":            insert = `\n---\n`;                       cursorOffset = insert.length;             break;
           default: return;
         }
