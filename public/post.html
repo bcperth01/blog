@@ -92,7 +92,8 @@
         : new URLSearchParams(location.search).get("slug");
       if (!slug) { showNotFound(); return; }
 
-      const res = await fetch(`${API}/posts/${slug}`);
+      const token = localStorage.getItem("authToken");
+      const res = await fetch(`${API}/posts/${slug}`, token ? { headers: { "Authorization": "Bearer " + token } } : {});
       document.getElementById("loading").style.display = "none";
 
       if (!res.ok) { showNotFound(); return; }
