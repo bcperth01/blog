@@ -504,7 +504,21 @@
 
     // ── View helpers ───────────────────────────────────────
     const ALL_VIEWS = ["view-posts","view-form","view-tags","view-users","view-user-form","view-images","view-logs","view-backups","view-traffic"];
-    function showView(id) {
+    async function showView(id) {
+      // If navigating away from the editor with unsaved changes, prompt first
+      if (id !== "view-form" && document.getElementById("view-form").style.display !== "none" && postDirty) {
+        const save = await showConfirm({
+          title:      "Unsaved changes",
+          message:    "You have unsaved changes. Would you like to save before leaving?",
+          okText:     "Save",
+          cancelText: "Exit without saving",
+        });
+        if (save) {
+          const saved = await savePost();
+          if (!saved) return;
+        }
+        postDirty = false;
+      }
       ALL_VIEWS.forEach(v => document.getElementById(v).style.display = v === id ? "block" : "none");
     }
 
@@ -963,6 +977,11 @@
 
     // ── Save post ──────────────────────────────────────────
     let postDirty = false;
+
+    // Warn before closing/navigating away from the page with unsaved changes
+    window.addEventListener("beforeunload", e => {
+      if (postDirty) { e.preventDefault(); e.returnValue = ""; }
+    });
 
     // Mark form dirty on any change
     ["input-title", "input-excerpt", "input-content", "input-published"].forEach(id => {
