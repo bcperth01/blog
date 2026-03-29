@@ -5,7 +5,7 @@ const { verifyToken, optionalAuth, requireRole } = require("../middleware/auth")
 const serverError = require("../lib/errors");
 
 function toSlug(str) {
-  return str.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+  return str.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").replace(/-+/g, "-");
 }
 
 async function withTags(posts) {
