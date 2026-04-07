@@ -69,7 +69,7 @@
       <div class="form-card" style="padding:0;overflow:hidden">
         <table class="admin-table">
           <thead>
-            <tr><th>Title</th><th title="Published or not">Pub</th><th title="Approved or not">App</th><th>Created</th><th>Tags</th><th id="th-author" style="display:none">Author</th><th>Actions</th></tr>
+            <tr><th>Title</th><th title="Published or not">Pub</th><th title="Approved or not">App</th><th title="No-index (excluded from search engines)">Idx</th><th>Created</th><th>Tags</th><th id="th-author" style="display:none">Author</th><th>Actions</th></tr>
           </thead>
           <tbody id="posts-tbody"></tbody>
         </table>
@@ -558,6 +558,7 @@
           <td><strong>${escHtml(p.title)}</strong></td>
           <td style="text-align:center;font-size:1rem;color:${p.published ? "#28a745" : "#dc3545"}">${p.published ? "✓" : "✗"}</td>
           <td style="text-align:center;font-size:1rem;color:${p.approved ? "#28a745" : "#dc3545"}">${p.approved ? "✓" : "✗"}</td>
+          <td style="text-align:center;font-size:1rem;color:${p.noindex ? "#dc3545" : "#28a745"}" title="${p.noindex ? "No-index: excluded from search engines" : "Indexed"}">${p.noindex ? "✗" : "✓"}</td>
           <td>${formatDate(p.created_at)}</td>
           <td>${p.tags.map(t => `<span class="tag" style="cursor:default">${escHtml(t.name)}</span>`).join(" ")}</td>
           <td style="${currentUser.role !== 'admin' ? 'display:none' : ''}">${escHtml(p.author_username || "—")}</td>
