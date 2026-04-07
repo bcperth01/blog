@@ -2,6 +2,12 @@
 
 ## Future Considerations
 
+### Disable Insert Image button while previewing
+- The Insert Image button remains active when the editor is in preview mode
+- Should be disabled (greyed out) when preview is active, re-enabled when switching back to edit mode
+
+---
+
 ### Markdown links open in new tab
 - Configure marked.js with a custom link renderer so external links automatically get `target="_blank" rel="noopener"`
 - Raw HTML `<a target="_blank">` already works as a workaround in the meantime

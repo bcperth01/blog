@@ -101,6 +101,13 @@
       const post = await res.json();
       document.title = post.title + " — Brendan's Blog";
 
+      // Noindex
+      if (post.noindex) {
+        const meta = document.createElement("meta");
+        meta.name = "robots"; meta.content = "noindex, nofollow";
+        document.head.appendChild(meta);
+      }
+
       // SEO meta tags
       const desc = post.excerpt || "";
       const canonical = window.location.origin + "/posts/" + post.slug;

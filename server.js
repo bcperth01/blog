@@ -73,7 +73,7 @@ app.get("/posts/:slug", (req, res) => {
 app.get("/sitemap.xml", async (req, res) => {
   try {
     const { rows } = await db.query(
-      "SELECT slug, updated_at, created_at FROM posts WHERE published = true AND approved = true ORDER BY created_at DESC"
+      "SELECT slug, updated_at, created_at FROM posts WHERE published = true AND approved = true AND noindex = false ORDER BY created_at DESC"
     );
     const base = process.env.SITE_URL || "https://blog.bcperth.com";
     const postUrls = rows.map(p => {

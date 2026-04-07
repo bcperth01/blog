@@ -67,7 +67,7 @@ router.get("/", optionalAuth, async (req, res) => {
       ? `ts_rank(p.search_vector, websearch_to_tsquery('english', $${searchParamIdx})) DESC, p.created_at DESC`
       : `p.created_at DESC`;
     const { rows } = await db.query(
-      `SELECT p.id, p.title, p.slug, p.excerpt, p.published, p.approved, p.likes, p.hits, p.card_image, p.created_at, p.updated_at, p.author_id, u.username AS author_username
+      `SELECT p.id, p.title, p.slug, p.excerpt, p.published, p.approved, p.noindex, p.likes, p.hits, p.card_image, p.created_at, p.updated_at, p.author_id, u.username AS author_username
        FROM posts p LEFT JOIN users u ON u.id = p.author_id ${where}
        ORDER BY ${orderBy}
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
@@ -106,7 +106,7 @@ router.get("/:slug", optionalAuth, async (req, res) => {
 
 // POST /api/posts — admin or contributor
 router.post("/", verifyToken, requireRole("admin", "contributor"), async (req, res) => {
-  const { title, content, excerpt = "", published = false, card_image = null, tags = [] } = req.body;
+  const { title, content, excerpt = "", published = false, noindex = false, card_image = null, tags = [] } = req.body;
   if (!title || !content) return res.status(400).json({ error: "title and content are required" });
   if (title.length > 200) return res.status(400).json({ error: "Title must be 200 characters or fewer" });
   if (excerpt.length > 500) return res.status(400).json({ error: "Excerpt must be 500 characters or fewer" });
@@ -117,8 +117,8 @@ router.post("/", verifyToken, requireRole("admin", "contributor"), async (req, r
     await client.query("BEGIN");
     const slug = toSlug(title) + "-" + Date.now().toString(36);
     const { rows } = await client.query(
-      "INSERT INTO posts (title, slug, content, excerpt, published, card_image, author_id) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *",
-      [title, slug, content, excerpt, published, card_image, req.user.id]
+      "INSERT INTO posts (title, slug, content, excerpt, published, noindex, card_image, author_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *",
+      [title, slug, content, excerpt, published, noindex, card_image, req.user.id]
     );
     const post = rows[0];
 
@@ -151,7 +151,7 @@ router.put("/:id", verifyToken, requireRole("admin", "contributor"), async (req,
     if (rows[0].author_id !== req.user.id) return res.status(403).json({ error: "Forbidden" });
   }
 
-  const { title, content, excerpt, published, tags } = req.body;
+  const { title, content, excerpt, published, noindex, tags } = req.body;
   if (title !== undefined && title.length > 200) return res.status(400).json({ error: "Title must be 200 characters or fewer" });
   if (excerpt !== undefined && excerpt.length > 500) return res.status(400).json({ error: "Excerpt must be 500 characters or fewer" });
   if (content !== undefined && content.length > 200000) return res.status(400).json({ error: "Content must be 200,000 characters or fewer" });
@@ -167,8 +167,9 @@ router.put("/:id", verifyToken, requireRole("admin", "contributor"), async (req,
       `excerpt   = COALESCE($3, excerpt)`,
       `published = COALESCE($4, published)`,
       `approved  = COALESCE($5, approved)`,
+      `noindex   = COALESCE($6, noindex)`,
     ];
-    const params = [title, content, excerpt, published, approved];
+    const params = [title, content, excerpt, published, approved, noindex ?? null];
     if ("card_image" in req.body) {
       params.push(req.body.card_image || null);
       sets.push(`card_image = $${params.length}`);

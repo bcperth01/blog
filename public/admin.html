@@ -94,6 +94,10 @@
                   <input type="checkbox" id="input-published" />
                   <label for="input-published" style="margin:0">Published</label>
                 </div>
+                <div class="checkbox-row" style="margin:0" title="Prevent search engines from indexing this post">
+                  <input type="checkbox" id="input-noindex" />
+                  <label for="input-noindex" style="margin:0">No index</label>
+                </div>
                 <button type="submit" class="btn btn-primary" id="btn-save" style="padding:0.25rem 0.7rem;font-size:0.82rem">Save Post</button>
                 <button type="button" class="btn btn-secondary" id="btn-done" style="padding:0.25rem 0.7rem;font-size:0.82rem">Done</button>
                 <span id="form-status" style="font-size:0.85rem;color:var(--muted)"></span>
@@ -642,6 +646,7 @@
       document.getElementById("input-excerpt").value = post.excerpt || "";
       document.getElementById("input-content").value = post.content;
       document.getElementById("input-published").checked = post.published;
+      document.getElementById("input-noindex").checked = post.noindex || false;
       const cardUrl = post.card_image || "";
       document.getElementById("input-card-image").value = cardUrl;
       if (cardUrl) {
@@ -990,6 +995,7 @@
       document.getElementById(id).addEventListener("input", () => { postDirty = true; });
     });
     document.getElementById("input-published").addEventListener("change", () => { postDirty = true; });
+    document.getElementById("input-noindex").addEventListener("change", () => { postDirty = true; });
 
     async function savePost() {
       const btn    = document.getElementById("btn-save");
@@ -1003,6 +1009,7 @@
         excerpt:    document.getElementById("input-excerpt").value.trim(),
         content:    document.getElementById("input-content").value,
         published:  document.getElementById("input-published").checked,
+        noindex:    document.getElementById("input-noindex").checked,
         card_image: document.getElementById("input-card-image").value || null,
         tags:       tagIds,
       };
