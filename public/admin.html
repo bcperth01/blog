@@ -524,8 +524,7 @@
         if (!SUITS[suit] || !["A","2","3","4","5","6","7","8","9","T","J","Q","K"].includes(rank)) return;
         const el = document.createElement("div");
         el.className = "playing-card" + (RED.has(suit) ? " red" : "");
-        const display = rank === "T" ? "10" : rank;
-        el.innerHTML = `<span class="card-rank">${display}</span><span class="card-suit">${SUITS[suit]}</span>`;
+        el.innerHTML = `<span class="card-rank">${rank}</span><span class="card-suit">${SUITS[suit]}</span>`;
         hand.appendChild(el);
       });
       return hand;
