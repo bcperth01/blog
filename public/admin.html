@@ -18,12 +18,6 @@
           const highlighted = hljs.highlight(code, { language }).value;
           return `<pre><code class="hljs language-${language}">${highlighted}</code></pre>`;
         }
-      },
-      walkTokens(token) {
-        if (token.type === 'code' && token.lang === 'cards') {
-          token.type = 'html';
-          token.text = `<div class="card-hand-placeholder">${token.text.trim()}</div>`;
-        }
       }
     });
   </script>
@@ -710,7 +704,11 @@
       const isEditing = textarea.style.display !== "none";
 
       if (isEditing) {
-        preview.innerHTML = DOMPurify.sanitize(marked.parse(textarea.value || "*Nothing to preview yet.*"));
+        const mdPreview = (textarea.value || "*Nothing to preview yet.*").replace(
+          /\[cards:\s*([^\]]+)\]/g,
+          (_, codes) => `<div class="card-hand-placeholder">${codes.trim()}</div>`
+        );
+        preview.innerHTML = DOMPurify.sanitize(marked.parse(mdPreview));
         preview.querySelectorAll("p").forEach(p => {
           const nodes = [...p.childNodes].filter(n => !(n.nodeType === Node.TEXT_NODE && !n.textContent.trim()));
           if (nodes.length > 1 && nodes.every(n => n.nodeName === "IMG")) p.classList.add("img-row");

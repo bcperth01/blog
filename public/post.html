@@ -73,12 +73,6 @@
           const highlighted = hljs.highlight(code, { language }).value;
           return `<pre><code class="hljs language-${language}">${highlighted}</code></pre>`;
         }
-      },
-      walkTokens(token) {
-        if (token.type === 'code' && token.lang === 'cards') {
-          token.type = 'html';
-          token.text = `<div class="card-hand-placeholder">${token.text.trim()}</div>`;
-        }
       }
     });
   </script>
@@ -151,7 +145,12 @@
       // Render markdown
       const postBody = document.getElementById("post-body");
       try {
-        postBody.innerHTML = DOMPurify.sanitize(marked.parse(post.content || ""));
+        // Pre-process [cards: AS KH] inline syntax before markdown sees the brackets
+        const mdContent = (post.content || "").replace(
+          /\[cards:\s*([^\]]+)\]/g,
+          (_, codes) => `<div class="card-hand-placeholder">${codes.trim()}</div>`
+        );
+        postBody.innerHTML = DOMPurify.sanitize(marked.parse(mdContent));
       } catch (e) {
         postBody.textContent = post.content || "";
       }
