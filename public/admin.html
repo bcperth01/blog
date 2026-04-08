@@ -521,10 +521,11 @@
       codesStr.trim().split(/\s+/).forEach(code => {
         code = code.toUpperCase();
         const suit = code.slice(-1), rank = code.slice(0, -1);
-        if (!SUITS[suit] || !["A","2","3","4","5","6","7","8","9","10","J","Q","K"].includes(rank)) return;
+        if (!SUITS[suit] || !["A","2","3","4","5","6","7","8","9","T","J","Q","K"].includes(rank)) return;
         const el = document.createElement("div");
         el.className = "playing-card" + (RED.has(suit) ? " red" : "");
-        el.innerHTML = `<span class="card-rank">${rank}</span><span class="card-suit">${SUITS[suit]}</span>`;
+        const display = rank === "T" ? "10" : rank;
+        el.innerHTML = `<span class="card-rank">${display}</span><span class="card-suit">${SUITS[suit]}</span>`;
         hand.appendChild(el);
       });
       return hand;
