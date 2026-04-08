@@ -275,7 +275,8 @@ nav a:hover, nav a.active { color: var(--accent); text-decoration: none; }
   line-height: 1;
 }
 .playing-card.red { color: #cc0000; }
-.playing-card .card-suit { align-self: flex-end; font-size: 1.6rem; }
+.playing-card .card-rank { display: block; line-height: 1; }
+.playing-card .card-suit { display: block; align-self: flex-end; font-size: 1.6rem; line-height: 1; }
 
 /* Multiple consecutive images render side-by-side */
 .post-body .img-row { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; align-items: flex-start; margin: 1.5rem 0; }
