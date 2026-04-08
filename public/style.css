@@ -254,6 +254,29 @@ nav a:hover, nav a.active { color: var(--accent); text-decoration: none; }
 .post-body th { background: var(--surface); font-weight: 600; }
 .post-body tr:nth-child(even) td { background: var(--surface); }
 
+/* Playing card hands */
+.card-hand { display: flex; gap: 0.4rem; flex-wrap: wrap; margin: 1.25rem 0; align-items: flex-end; }
+.playing-card {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 3rem;
+  height: 4.25rem;
+  border: 1px solid #bbb;
+  border-radius: 0.4rem;
+  padding: 0.2rem 0.3rem;
+  font-family: Georgia, serif;
+  font-weight: bold;
+  font-size: 0.9rem;
+  background: #fff;
+  color: #111;
+  box-shadow: 1px 2px 4px rgba(0,0,0,0.18);
+  user-select: none;
+  line-height: 1;
+}
+.playing-card.red { color: #cc0000; }
+.playing-card .card-suit { align-self: flex-end; font-size: 1.1rem; }
+
 /* Multiple consecutive images render side-by-side */
 .post-body .img-row { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; align-items: flex-start; margin: 1.5rem 0; }
 .post-body .img-row img { flex: 1 1 200px; max-width: min(300px, 100%); margin: 0; }

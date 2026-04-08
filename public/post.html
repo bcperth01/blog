@@ -181,6 +181,47 @@
         }
       }
 
+      // Render [cards: AS KH 10D JC TS] shortcodes as styled card hands
+      (function processCards(container) {
+        const SUITS = { S: "♠", H: "♥", D: "♦", C: "♣" };
+        const RED   = new Set(["H", "D"]);
+        function parseCard(code) {
+          code = code.toUpperCase();
+          const suit = code.slice(-1), rank = code.slice(0, -1);
+          if (!SUITS[suit]) return null;
+          if (!["A","2","3","4","5","6","7","8","9","10","J","Q","K"].includes(rank)) return null;
+          return { rank, suit };
+        }
+        function makeHand(codesStr) {
+          const hand = document.createElement("div");
+          hand.className = "card-hand";
+          codesStr.trim().split(/\s+/).forEach(code => {
+            const c = parseCard(code);
+            if (!c) return;
+            const el = document.createElement("div");
+            el.className = "playing-card" + (RED.has(c.suit) ? " red" : "");
+            el.innerHTML = `<span class="card-rank">${c.rank}</span><span class="card-suit">${SUITS[c.suit]}</span>`;
+            hand.appendChild(el);
+          });
+          return hand;
+        }
+        const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+        const nodes = [];
+        while (walker.nextNode()) nodes.push(walker.currentNode);
+        nodes.forEach(node => {
+          if (!node.textContent.includes("[cards:")) return;
+          const frag = document.createDocumentFragment();
+          let last = 0;
+          node.textContent.replace(/\[cards:\s*([^\]]+)\]/g, (m, codes, idx) => {
+            if (idx > last) frag.appendChild(document.createTextNode(node.textContent.slice(last, idx)));
+            frag.appendChild(makeHand(codes));
+            last = idx + m.length;
+          });
+          if (last < node.textContent.length) frag.appendChild(document.createTextNode(node.textContent.slice(last)));
+          node.parentNode.replaceChild(frag, node);
+        });
+      })(postBody);
+
       // Wire up lightbox — click any image to open full-size in the lightbox
       postBody.querySelectorAll("img").forEach(img => {
         const filename = decodeURIComponent(img.src.split("/").pop().split("?")[0]);
