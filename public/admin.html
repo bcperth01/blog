@@ -592,7 +592,7 @@
                 <button onclick="closeRowMenus();editPost(${p.id}, '${p.slug}')">Edit</button>
                 ${currentUser.role === "admin" || p.author_id === currentUser.id ? `<button onclick="closeRowMenus();togglePublish(${p.id}, ${p.published})">${p.published ? "Unpublish" : "Publish"}</button>` : ""}
                 ${currentUser.role === "admin" ? `<button onclick="closeRowMenus();toggleApprove(${p.id}, ${p.approved})">${p.approved ? "Unapprove" : "Approve"}</button>` : ""}
-                <a href="/posts/${p.slug}" target="_blank">View</a>
+                <a href="/posts/${p.slug}">View</a>
                 <button class="danger" onclick="closeRowMenus();deletePost(${p.id}, '${escHtml(p.title)}')">Delete</button>
               </div>
             </div>
