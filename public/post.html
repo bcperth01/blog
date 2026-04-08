@@ -73,6 +73,12 @@
           const highlighted = hljs.highlight(code, { language }).value;
           return `<pre><code class="hljs language-${language}">${highlighted}</code></pre>`;
         }
+      },
+      walkTokens(token) {
+        if (token.type === 'code' && token.lang === 'cards') {
+          token.type = 'html';
+          token.text = `<div class="card-hand-placeholder">${token.text.trim()}</div>`;
+        }
       }
     });
   </script>
@@ -145,12 +151,7 @@
       // Render markdown
       const postBody = document.getElementById("post-body");
       try {
-        // Pre-process ```cards fences into placeholder divs before markdown parsing
-        const mdContent = (post.content || "").replace(
-          /```cards\r?\n([\s\S]*?)```/g,
-          (_, codes) => `<div class="card-hand-placeholder">${codes.trim()}</div>`
-        );
-        postBody.innerHTML = DOMPurify.sanitize(marked.parse(mdContent));
+        postBody.innerHTML = DOMPurify.sanitize(marked.parse(post.content || ""));
       } catch (e) {
         postBody.textContent = post.content || "";
       }
@@ -204,7 +205,7 @@
         return hand;
       }
       postBody.querySelectorAll(".card-hand-placeholder").forEach(el => {
-        el.replaceWith(makeCardHand(el.dataset.cards || ""));
+        el.replaceWith(makeCardHand(el.textContent));
       });
 
       // Wire up lightbox — click any image to open full-size in the lightbox
