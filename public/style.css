@@ -271,7 +271,7 @@ nav a:hover, nav a.active { color: var(--accent); text-decoration: none; }
   user-select: none;
 }
 .playing-card.red { color: #cc0000; }
-.playing-card .card-rank { position: absolute; top: 0.15rem; left: 0.25rem; font-size: 2rem; line-height: 1; }
+.playing-card .card-rank { position: absolute; top: 0.15rem; left: 0.25rem; font-size: 2rem; line-height: 1; font-family: Arial, Helvetica, sans-serif; }
 .playing-card .card-suit { position: absolute; bottom: 0.15rem; right: 0.25rem; font-size: 1.6rem; line-height: 1; }
 
 /* Multiple consecutive images render side-by-side */
