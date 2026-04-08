@@ -255,7 +255,7 @@ nav a:hover, nav a.active { color: var(--accent); text-decoration: none; }
 .post-body tr:nth-child(even) td { background: var(--surface); }
 
 /* Playing card hands */
-.card-hand { display: flex; gap: 0.4rem; flex-wrap: wrap; margin: 1.25rem 0; align-items: flex-end; }
+.card-hand { display: flex; gap: 0.4rem; flex-wrap: wrap; margin: 1.25rem 0 1.25rem 2rem; align-items: flex-end; }
 .playing-card {
   display: inline-flex;
   flex-direction: column;
