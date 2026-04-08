@@ -69,11 +69,6 @@
     marked.use({
       renderer: {
         code(code, lang) {
-          if (lang === "cards") {
-            // Encode card codes into a data attribute; processed after DOMPurify
-            const safe = code.trim().replace(/"/g, "&quot;");
-            return `<div class="card-hand-placeholder" data-cards="${safe}"></div>`;
-          }
           const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
           const highlighted = hljs.highlight(code, { language }).value;
           return `<pre><code class="hljs language-${language}">${highlighted}</code></pre>`;
@@ -150,7 +145,12 @@
       // Render markdown
       const postBody = document.getElementById("post-body");
       try {
-        postBody.innerHTML = DOMPurify.sanitize(marked.parse(post.content || ""), { ADD_ATTR: ["data-cards"] });
+        // Pre-process ```cards fences into placeholder divs before markdown parsing
+        const mdContent = (post.content || "").replace(
+          /```cards\r?\n([\s\S]*?)```/g,
+          (_, codes) => `<div class="card-hand-placeholder">${codes.trim()}</div>`
+        );
+        postBody.innerHTML = DOMPurify.sanitize(marked.parse(mdContent));
       } catch (e) {
         postBody.textContent = post.content || "";
       }
