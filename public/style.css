@@ -267,7 +267,7 @@ nav a:hover, nav a.active { color: var(--accent); text-decoration: none; }
   padding: 0.2rem 0.3rem;
   font-family: Georgia, serif;
   font-weight: bold;
-  font-size: 1.2rem;
+  font-size: 2rem;
   background: #fff;
   color: #111;
   box-shadow: 1px 2px 4px rgba(0,0,0,0.18);
@@ -275,7 +275,7 @@ nav a:hover, nav a.active { color: var(--accent); text-decoration: none; }
   line-height: 1;
 }
 .playing-card.red { color: #cc0000; }
-.playing-card .card-suit { align-self: flex-end; font-size: 1.4rem; }
+.playing-card .card-suit { align-self: flex-end; font-size: 1.6rem; }
 
 /* Multiple consecutive images render side-by-side */
 .post-body .img-row { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; align-items: flex-start; margin: 1.5rem 0; }
