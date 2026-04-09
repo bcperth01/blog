@@ -64,9 +64,28 @@ app.get("/post.html", (req, res) => {
   return res.redirect(301, slug ? `/posts/${encodeURIComponent(slug)}` : "/");
 });
 
-// Serve post.html for clean post URLs
-app.get("/posts/:slug", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "post.html"));
+// Serve post.html for clean post URLs — SSR for published posts, fallback for drafts
+const { renderPostHtml } = require("./lib/renderPost");
+app.get("/posts/:slug", async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT p.*, u.username AS author_username
+       FROM posts p LEFT JOIN users u ON u.id = p.author_id
+       WHERE p.slug = $1 AND p.published = true AND p.approved = true`,
+      [req.params.slug]
+    );
+    if (!rows.length) return res.sendFile(path.join(__dirname, "public", "post.html"));
+    const post = rows[0];
+    const { rows: tagRows } = await db.query(
+      `SELECT t.name, t.slug FROM post_tags pt JOIN tags t ON t.id = pt.tag_id WHERE pt.post_id = $1`,
+      [post.id]
+    );
+    post.tags = tagRows;
+    const siteUrl = process.env.SITE_URL || "https://blog.bcperth.com";
+    res.send(renderPostHtml(post, siteUrl));
+  } catch (err) {
+    res.sendFile(path.join(__dirname, "public", "post.html"));
+  }
 });
 
 // Sitemap
