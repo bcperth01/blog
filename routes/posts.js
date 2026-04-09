@@ -115,11 +115,12 @@ router.post("/", verifyToken, requireRole("admin", "contributor"), async (req, r
   const client = await db.connect();
   try {
     await client.query("BEGIN");
-    const baseSlug = toSlug(title);
-    let slug = baseSlug;
-    let suffix = 2;
-    while ((await client.query("SELECT 1 FROM posts WHERE slug = $1", [slug])).rows.length) {
-      slug = `${baseSlug}-${suffix++}`;
+    const slug = toSlug(title);
+    const existing = await client.query("SELECT 1 FROM posts WHERE slug = $1", [slug]);
+    if (existing.rows.length) {
+      await client.query("ROLLBACK");
+      client.release();
+      return res.status(409).json({ error: `A post with the title "${title}" already exists. Please use a different title.` });
     }
     const { rows } = await client.query(
       "INSERT INTO posts (title, slug, content, excerpt, published, noindex, card_image, author_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *",
