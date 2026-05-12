@@ -101,6 +101,7 @@ The content field accepts standard Markdown:
 | `[text](url)` | hyperlink |
 | `![alt](url)` | image |
 | ` ```js ` … ` ``` ` | syntax-highlighted code block |
+| `[cards: AS KH]` | rendered playing cards (rank + suit, space-separated) |
 
 To embed an image from the image library, go to **Images**, find the image, and click **Copy MD** — this copies the correct Markdown snippet to your clipboard. Paste it into the content field.
 
