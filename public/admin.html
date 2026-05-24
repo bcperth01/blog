@@ -839,11 +839,12 @@
         menu.style.left = e.clientX + "px";
         menu.style.top  = e.clientY + "px";
         menu.classList.add("open");
-        // Nudge left/down if menu would overflow viewport
         requestAnimationFrame(() => {
           const r = menu.getBoundingClientRect();
-          if (r.right  > window.innerWidth)  menu.style.left = (e.clientX - r.width)  + "px";
-          if (r.bottom > window.innerHeight) menu.style.top  = (e.clientY - r.height) + "px";
+          if (r.right  > window.innerWidth)  menu.style.left = Math.max(0, e.clientX - r.width)  + "px";
+          if (r.bottom > window.innerHeight) menu.style.top  = Math.max(0, e.clientY - r.height) + "px";
+          if (r.left   < 0)                  menu.style.left = "0px";
+          if (r.top    < 0)                  menu.style.top  = "0px";
         });
       });
 
